@@ -81,7 +81,13 @@ export const ChatBox: React.FC<{ bookingId: number }> = ({ bookingId }) => {
           </div>
         ) : (
           messages.map((msg) => {
-            const isMe = String(msg.senderId) === String(user?.id);
+            const msgSenderId = msg.senderId !== undefined ? msg.senderId : (msg as any).sender_id;
+            const msgSenderRole = msg.senderRole !== undefined ? msg.senderRole : (msg as any).sender_role;
+            const msgContent = msg.content !== undefined ? msg.content : (msg as any).content;
+            const msgCreatedAt = msg.createdAt !== undefined ? msg.createdAt : (msg as any).created_at;
+
+            const isMe = String(msgSenderId) === String(user?.id) && 
+                         String(msgSenderRole).toUpperCase() === String(user?.role).toUpperCase();
 
             return (
               <div
@@ -97,20 +103,20 @@ export const ChatBox: React.FC<{ bookingId: number }> = ({ bookingId }) => {
                 >
                   {/* Role label */}
                   <div className="text-[10px] opacity-70 mb-1">
-                    {msg.senderRole === 'PROVIDER'
+                    {String(msgSenderRole).toUpperCase() === 'PROVIDER'
                       ? '👨‍🔧 Provider'
                       : '👤 Customer'}
                   </div>
 
                   {/* Message */}
-                  <div className="break-words">{msg.content}</div>
+                  <div className="break-words">{msgContent}</div>
 
                   {/* Time */}
                   <div className="text-[10px] mt-1 opacity-60 text-right">
-                    {new Date(msg.createdAt).toLocaleTimeString([], {
+                    {msgCreatedAt ? new Date(msgCreatedAt).toLocaleTimeString([], {
                       hour: '2-digit',
                       minute: '2-digit',
-                    })}
+                    }) : ''}
                   </div>
                 </div>
               </div>
