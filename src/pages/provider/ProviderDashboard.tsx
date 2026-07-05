@@ -82,7 +82,7 @@ export const ProviderDashboard: React.FC = () => {
 
   const handleCompleteJob = async (id: number) => {
     try {
-      await apiClient.put(`/bookings/${id}/complete`);
+      await apiClient.post(`/bookings/${id}/complete`);
       fetchBookings();
       await fetchUser();
     } catch (err: any) {
