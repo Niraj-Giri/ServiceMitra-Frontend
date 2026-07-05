@@ -49,6 +49,7 @@ export const ManageAddressesModal = ({ isOpen, onClose, onAddressSelected }: { i
   const [title, setTitle] = useState('');
   const [addressLine, setAddressLine] = useState('');
   const [position, setPosition] = useState<L.LatLng | null>(null);
+  const [alertConfig, setAlertConfig] = useState<{ title: string; message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   useEffect(() => {
     if (isOpen && user) {
@@ -70,7 +71,11 @@ export const ManageAddressesModal = ({ isOpen, onClose, onAddressSelected }: { i
   const handleAddAddress = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!position) {
-      alert('Please click on the map to set a location pin');
+      setAlertConfig({
+        title: "Map Pin Missing",
+        message: "Please click on the map to set a location pin.",
+        type: "error"
+      });
       return;
     }
     try {
@@ -115,7 +120,11 @@ export const ManageAddressesModal = ({ isOpen, onClose, onAddressSelected }: { i
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => setPosition(new L.LatLng(pos.coords.latitude, pos.coords.longitude)),
-        () => alert('Could not get current location')
+        () => setAlertConfig({
+          title: "Location Access Denied",
+          message: "Could not get current location. Please enable location permissions.",
+          type: "error"
+        })
       );
     }
   };
@@ -266,7 +275,11 @@ export const ManageAddressesModal = ({ isOpen, onClose, onAddressSelected }: { i
                 <button type="button" onClick={() => setMode('list')} className="flex-1 bg-slate-100 text-slate-600 font-bold py-4 rounded-xl hover:bg-slate-200 transition-colors">Cancel</button>
                 <button type="button" onClick={() => {
                   if (!position) {
-                    alert('Please click on the map to set a location pin');
+                    setAlertConfig({
+                      title: "Map Pin Missing",
+                      message: "Please click on the map to set a location pin.",
+                      type: "error"
+                    });
                     return;
                   }
                   onAddressSelected({
@@ -278,6 +291,41 @@ export const ManageAddressesModal = ({ isOpen, onClose, onAddressSelected }: { i
                   });
                 }} className="flex-1 bg-emerald-600 text-white font-bold py-4 rounded-xl hover:bg-emerald-700 transition-colors shadow-lg">Confirm Location</button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Alert Modal */}
+        {alertConfig && (
+          <div 
+            className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 p-4 animate-fade-in"
+            onClick={() => setAlertConfig(null)}
+          >
+            <div 
+              className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl relative text-center animate-scale-in"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className={`mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full ${
+                alertConfig.type === 'success' ? 'bg-green-50 text-green-600' :
+                alertConfig.type === 'error' ? 'bg-red-50 text-red-600' :
+                'bg-blue-50 text-blue-600'
+              }`}>
+                <span className="text-xl font-bold">
+                  {alertConfig.type === 'success' ? '✓' : alertConfig.type === 'error' ? '✕' : 'ℹ'}
+                </span>
+              </div>
+              <h3 className="text-lg font-extrabold text-slate-900 mb-2">{alertConfig.title}</h3>
+              <p className="text-slate-500 text-sm mb-6 leading-relaxed">{alertConfig.message}</p>
+              <button
+                onClick={() => setAlertConfig(null)}
+                className={`w-full font-bold py-3 rounded-xl transition ${
+                  alertConfig.type === 'success' ? 'bg-green-600 hover:bg-green-700 text-white' :
+                  alertConfig.type === 'error' ? 'bg-red-600 hover:bg-red-700 text-white' :
+                  'bg-blue-600 hover:bg-blue-700 text-white'
+                }`}
+              >
+                Dismiss
+              </button>
             </div>
           </div>
         )}
