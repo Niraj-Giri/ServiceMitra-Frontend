@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { Link } from 'react-router-dom';
-import { BriefcaseBusiness, ChevronDown, UserRound } from 'lucide-react';
+import { BriefcaseBusiness, ChevronDown, UserRound, Menu, X } from 'lucide-react';
 
 export const TopBar: React.FC = () => {
   const { user, isAuthenticated, logout } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
@@ -126,8 +127,51 @@ export const TopBar: React.FC = () => {
               Login
             </Link>
           )}
+
+          {/* Mobile Menu Button */}
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="flex md:hidden items-center justify-center p-2 rounded-xl text-slate-600 hover:bg-slate-100 transition"
+            aria-label="Toggle menu"
+          >
+            {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </button>
         </nav>
       </div>
+
+      {/* Mobile Menu Dropdown */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden border-t border-slate-100 bg-white px-4 py-4 space-y-3 shadow-md animate-in slide-in-from-top-4 duration-200">
+          {(!isAuthenticated || user?.role === 'CUSTOMER') && (
+            <>
+              <Link 
+                to="/" 
+                className="block text-sm font-bold text-slate-700 hover:text-blue-600 py-1 transition"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Home
+              </Link>
+              <Link 
+                to="/services" 
+                className="block text-sm font-bold text-slate-700 hover:text-blue-600 py-1 transition"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Services
+              </Link>
+            </>
+          )}
+          {!isAuthenticated && (
+            <Link 
+              to="/?login=partner" 
+              className="flex w-full items-center justify-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-bold text-blue-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-100"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              <BriefcaseBusiness className="h-4 w-4" />
+              Become a Professional
+            </Link>
+          )}
+        </div>
+      )}
     </header>
   );
 };

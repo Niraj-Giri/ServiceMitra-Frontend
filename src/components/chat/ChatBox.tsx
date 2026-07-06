@@ -14,7 +14,8 @@ export const ChatBox: React.FC<{ bookingId: number }> = ({ bookingId }) => {
   const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const prevMessagesRef = useRef<string>('');
 
   const fetchMessages = async () => {
     try {
@@ -34,7 +35,18 @@ export const ChatBox: React.FC<{ bookingId: number }> = ({ bookingId }) => {
   }, [bookingId]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Only scroll to the bottom when the list of message IDs actually changes.
+    // This prevents jump-scrolling on mobile when polling executes every 3s.
+    const messagesString = JSON.stringify(messages.map(m => m.id));
+    if (messagesString !== prevMessagesRef.current) {
+      if (messagesContainerRef.current) {
+        messagesContainerRef.current.scrollTo({
+          top: messagesContainerRef.current.scrollHeight,
+          behavior: 'smooth',
+        });
+      }
+      prevMessagesRef.current = messagesString;
+    }
   }, [messages]);
 
   const handleSend = async (e: React.FormEvent) => {
@@ -68,7 +80,7 @@ export const ChatBox: React.FC<{ bookingId: number }> = ({ bookingId }) => {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-3">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-3 py-4 space-y-3">
         {messages.length === 0 ? (
           <div className="text-center mt-16">
             <div className="text-4xl mb-2">💬</div>
@@ -123,7 +135,7 @@ export const ChatBox: React.FC<{ bookingId: number }> = ({ bookingId }) => {
             );
           })
         )}
-        <div ref={messagesEndRef} />
+
       </div>
 
       {/* Input */}
