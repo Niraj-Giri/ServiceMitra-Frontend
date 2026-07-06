@@ -17,6 +17,39 @@ export const BookingTracking: React.FC = () => {
   const [submitted, setSubmitted] = useState(false);
   const [ratingError, setRatingError] = useState('');
 
+  // Complaint State
+  const [showComplaintModal, setShowComplaintModal] = useState(false);
+  const [complaintSubject, setComplaintSubject] = useState('Service Dispute');
+  const [complaintDesc, setComplaintDesc] = useState('');
+  const [complaintPriority, setComplaintPriority] = useState('MEDIUM');
+  const [submittingComplaint, setSubmittingComplaint] = useState(false);
+  const [complaintError, setComplaintError] = useState('');
+  const [complaintSuccess, setComplaintSuccess] = useState(false);
+
+  const handleComplaintSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmittingComplaint(true);
+    setComplaintError('');
+    try {
+      await apiClient.post('/complaints', {
+        bookingId: Number(bookingId),
+        subject: complaintSubject,
+        description: complaintDesc,
+        priority: complaintPriority
+      });
+      setComplaintSuccess(true);
+      setTimeout(() => {
+        setShowComplaintModal(false);
+        setComplaintSuccess(false);
+        setComplaintDesc('');
+      }, 2000);
+    } catch (err: any) {
+      setComplaintError(err.response?.data?.message || 'Failed to submit complaint');
+    } finally {
+      setSubmittingComplaint(false);
+    }
+  };
+
   const handleRatingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
@@ -268,7 +301,16 @@ export const BookingTracking: React.FC = () => {
             {/* Rating & Review Form (Only for Completed Booking) */}
             {(booking.status || '').toUpperCase() === 'COMPLETED' && (
               <div className="border-t border-slate-100 pt-6 space-y-4">
-                <h3 className="text-lg font-bold text-gray-900">Rate this Service</h3>
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-bold text-gray-900">Rate this Service</h3>
+                  <button 
+                    type="button"
+                    onClick={() => setShowComplaintModal(true)}
+                    className="text-xs font-bold text-rose-600 hover:text-rose-700 underline focus:outline-none"
+                  >
+                    Report an Issue / File Dispute
+                  </button>
+                </div>
                 
                 {submitted ? (
                   <div className="bg-green-50 border border-green-200 text-green-800 p-4 rounded-xl text-center text-sm font-semibold">
@@ -378,6 +420,72 @@ export const BookingTracking: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* COMPLAINT MODAL */}
+      {showComplaintModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-100 space-y-4">
+            <h3 className="font-extrabold text-slate-950 text-base">File a Complaint</h3>
+            {complaintSuccess ? (
+              <div className="bg-green-50 border border-green-200 text-green-800 p-4 rounded-xl text-center text-sm font-semibold">
+                Complaint submitted successfully! Redirecting...
+              </div>
+            ) : (
+              <form onSubmit={handleComplaintSubmit} className="space-y-4 text-sm">
+                {complaintError && (
+                  <div className="bg-red-50 text-red-600 p-3 rounded-lg text-xs font-semibold">
+                    {complaintError}
+                  </div>
+                )}
+                <div>
+                  <label className="block font-semibold text-slate-600 mb-1">Issue Topic / Subject</label>
+                  <select
+                    value={complaintSubject}
+                    onChange={(e) => setComplaintSubject(e.target.value)}
+                    className="w-full p-2.5 border border-slate-200 rounded-xl"
+                  >
+                    <option value="Overcharged">Pricing disagreement / Overcharged</option>
+                    <option value="Poor Quality">Poor quality of service</option>
+                    <option value="Incomplete Work">Work left incomplete</option>
+                    <option value="Damages">Property damages caused</option>
+                    <option value="No Show">Provider did not show up</option>
+                    <option value="Other">Other / General dispute</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-600 mb-1">Description</label>
+                  <textarea
+                    rows={4}
+                    value={complaintDesc}
+                    onChange={(e) => setComplaintDesc(e.target.value)}
+                    placeholder="Provide details about the issue so administrators can investigate..."
+                    className="w-full p-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-600 mb-1">Urgency Priority</label>
+                  <select
+                    value={complaintPriority}
+                    onChange={(e) => setComplaintPriority(e.target.value)}
+                    className="w-full p-2.5 border border-slate-200 rounded-xl"
+                  >
+                    <option value="LOW">LOW</option>
+                    <option value="MEDIUM">MEDIUM</option>
+                    <option value="HIGH">HIGH</option>
+                  </select>
+                </div>
+                <div className="flex gap-2 justify-end pt-2">
+                  <button type="button" onClick={() => setShowComplaintModal(false)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl">Cancel</button>
+                  <button type="submit" disabled={submittingComplaint} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl disabled:opacity-50">
+                    {submittingComplaint ? 'Submitting...' : 'File Complaint'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
