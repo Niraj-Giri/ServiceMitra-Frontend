@@ -21,6 +21,9 @@ import { BookingCheckout } from './pages/customer/BookingCheckout';
 import { BookingTracking } from './pages/customer/BookingTracking';
 import { ProviderSelection } from './pages/customer/ProviderSelection';
 
+import { PostTask } from './pages/customer/PostTask';
+import { TaskDetail } from './pages/customer/TaskDetail';
+
 const App: React.FC = () => {
   const { fetchUser, isAuthenticated } = useAuth();
 
@@ -52,8 +55,8 @@ const App: React.FC = () => {
 
           <Route element={<AuthGuard allowedRoles={['CUSTOMER']} />}>
             <Route path="customer/dashboard" element={<CustomerDashboard />} />
-            <Route path="services/:serviceId/providers" element={<ProviderSelection />} />
-            <Route path="checkout/:serviceId" element={<BookingCheckout />} />
+            <Route path="task/new" element={<PostTask />} />
+            <Route path="task/:taskId" element={<TaskDetail />} />
             <Route path="tracking/:bookingId" element={<BookingTracking />} />
           </Route>
 

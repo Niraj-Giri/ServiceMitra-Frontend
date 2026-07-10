@@ -4,7 +4,7 @@ import { Button } from '../../components/ui/Button';
 import { 
   LayoutDashboard, Users, Wrench, ShieldCheck, ClipboardList, 
   Settings, Activity, DollarSign, AlertTriangle, 
-  Send, RefreshCw, Plus, FileText, Calendar
+  Send, RefreshCw, Plus, FileText, Calendar, Menu, X
 } from 'lucide-react';
 import { 
   ResponsiveContainer, AreaChart, Area, BarChart, Bar, 
@@ -18,6 +18,7 @@ interface Customer {
   email: string;
   isActive: boolean;
   createdAt: string;
+  rewardPoints?: number;
 }
 
 interface Provider {
@@ -157,6 +158,13 @@ export const AdminDashboard: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [editCustomer, setEditCustomer] = useState<Customer | null>(null);
   const [editProvider, setEditProvider] = useState<Provider | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
+  // Points & Incentives Admin State
+  const [pointsAdjustAmt, setPointsAdjustAmt] = useState<string>('');
+  const [pointsAdjustDesc, setPointsAdjustDesc] = useState<string>('Manual adjustment by Admin');
+  const [incentiveAmt, setIncentiveAmt] = useState<string>('');
+  const [incentiveReason, setIncentiveReason] = useState<string>('SPECIAL_CAMPAIGN');
+  const [incentiveDesc, setIncentiveDesc] = useState<string>('Performance Bonus');
   const [newService, setNewService] = useState<boolean>(false);
   const [newServiceData, setNewServiceData] = useState({ category: 'ELECTRICAL', name: '', description: '', basePrice: 0 });
   const [complaintThread, setComplaintThread] = useState<Complaint | null>(null);
@@ -254,6 +262,15 @@ export const AdminDashboard: React.FC = () => {
         name: editCustomer.name,
         email: editCustomer.email
       });
+      if (pointsAdjustAmt.trim()) {
+        await apiClient.post(`/admin/customers/${editCustomer.id}/loyalty`, {
+          points: parseInt(pointsAdjustAmt),
+          actionType: 'COMPENSATION',
+          description: pointsAdjustDesc
+        });
+        setPointsAdjustAmt('');
+        setPointsAdjustDesc('Manual adjustment by Admin');
+      }
       alert('Customer updated successfully');
       setEditCustomer(null);
       loadDashboardData();
@@ -283,6 +300,16 @@ export const AdminDashboard: React.FC = () => {
       await apiClient.put(`/admin/providers/${editProvider.id}/assign-area`, {
         address: editProvider.address
       });
+      if (incentiveAmt.trim()) {
+        await apiClient.post(`/admin/providers/${editProvider.id}/incentives`, {
+          amount: parseFloat(incentiveAmt),
+          reason: incentiveReason,
+          description: incentiveDesc
+        });
+        setIncentiveAmt('');
+        setIncentiveReason('SPECIAL_CAMPAIGN');
+        setIncentiveDesc('Performance Bonus');
+      }
       alert('Provider updated successfully');
       setEditProvider(null);
       loadDashboardData();
@@ -422,14 +449,21 @@ export const AdminDashboard: React.FC = () => {
     <div className="flex min-h-screen bg-slate-50 text-slate-800">
       
       {/* Sidebar Navigation */}
-      <aside className="w-64 bg-slate-900 text-slate-100 flex flex-col border-r border-slate-800">
-        <div className="p-6 border-b border-slate-800">
+      {/* Sidebar Navigation */}
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-slate-100 flex flex-col border-r border-slate-800 transform transition-transform duration-300 md:relative md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="p-6 border-b border-slate-800 flex justify-between items-center">
           <div className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-white">M</div>
             <span className="font-extrabold text-lg tracking-wider">Mitra Admin</span>
           </div>
+          <button 
+            onClick={() => setIsSidebarOpen(false)}
+            className="p-1 rounded-lg text-slate-400 hover:text-white md:hidden"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {[
             { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
             { id: 'customers', label: 'Customers', icon: Users },
@@ -448,7 +482,10 @@ export const AdminDashboard: React.FC = () => {
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  setIsSidebarOpen(false);
+                }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold transition ${
                   activeTab === tab.id 
                     ? 'bg-blue-600 text-white' 
@@ -466,15 +503,29 @@ export const AdminDashboard: React.FC = () => {
         </div>
       </aside>
 
+      {/* Backdrop for mobile */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-xs md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {/* Main Panel Content */}
-      <main className="flex-1 flex flex-col overflow-y-auto">
-        <header className="bg-white border-b border-slate-200 px-8 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold capitalize text-slate-950">{activeTab.replace('-', ' ')} Control Panel</h1>
+      <main className="flex-1 flex flex-col overflow-y-auto w-full">
+        <header className="bg-white border-b border-slate-200 px-4 md:px-8 py-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setIsSidebarOpen(true)}
+              className="p-2 -ml-2 rounded-xl text-slate-600 hover:bg-slate-100 md:hidden"
+            >
+              <Menu className="h-6 w-6" />
+            </button>
+            <h1 className="text-lg md:text-xl font-bold capitalize text-slate-950 truncate">{activeTab.replace('-', ' ')} Control Panel</h1>
           </div>
-          <Button onClick={loadDashboardData} className="gap-2 bg-blue-600 hover:bg-blue-700 text-sm">
+          <Button onClick={loadDashboardData} className="gap-2 bg-blue-600 hover:bg-blue-700 text-xs md:text-sm shrink-0">
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            Sync Data
+            <span className="hidden sm:inline">Sync Data</span>
           </Button>
         </header>
 
@@ -600,51 +651,55 @@ export const AdminDashboard: React.FC = () => {
                   <div className="p-6 border-b border-slate-100 flex justify-between items-center">
                     <h3 className="font-bold text-slate-900">Platform Customers</h3>
                   </div>
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-slate-50 text-xs font-semibold text-slate-500 border-b border-slate-100 uppercase tracking-wider">
-                        <th className="px-6 py-4">ID</th>
-                        <th className="px-6 py-4">Name</th>
-                        <th className="px-6 py-4">Phone</th>
-                        <th className="px-6 py-4">Email</th>
-                        <th className="px-6 py-4">Status</th>
-                        <th className="px-6 py-4 text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 text-sm">
-                      {customers.map((c) => (
-                        <tr key={c.id} className="hover:bg-slate-50/50">
-                          <td className="px-6 py-4 font-bold text-slate-900">#{c.id}</td>
-                          <td className="px-6 py-4 font-semibold">{c.name}</td>
-                          <td className="px-6 py-4">{c.phone}</td>
-                          <td className="px-6 py-4 text-slate-500">{c.email || 'N/A'}</td>
-                          <td className="px-6 py-4">
-                            <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                              c.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
-                            }`}>
-                              {c.isActive ? 'ACTIVE' : 'SUSPENDED'}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-right space-x-2">
-                            <button
-                              onClick={() => setEditCustomer(c)}
-                              className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs"
-                            >
-                              Edit Profile
-                            </button>
-                            <button
-                              onClick={() => handleToggleCustomer(c.id, !c.isActive)}
-                              className={`px-3 py-1 font-bold rounded-xl text-xs ${
-                                c.isActive ? 'bg-rose-100 hover:bg-rose-200 text-rose-700' : 'bg-emerald-100 hover:bg-emerald-200 text-emerald-700'
-                              }`}
-                            >
-                              {c.isActive ? 'Suspend' : 'Activate'}
-                            </button>
-                          </td>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse min-w-[700px]">
+                      <thead>
+                        <tr className="bg-slate-50 text-xs font-semibold text-slate-500 border-b border-slate-100 uppercase tracking-wider">
+                          <th className="px-6 py-4">ID</th>
+                          <th className="px-6 py-4">Name</th>
+                          <th className="px-6 py-4">Phone</th>
+                          <th className="px-6 py-4">Email</th>
+                          <th className="px-6 py-4">Reward Points</th>
+                          <th className="px-6 py-4">Status</th>
+                          <th className="px-6 py-4 text-right">Actions</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-sm">
+                        {customers.map((c) => (
+                          <tr key={c.id} className="hover:bg-slate-50/50">
+                            <td className="px-6 py-4 font-bold text-slate-900">#{c.id}</td>
+                            <td className="px-6 py-4 font-semibold">{c.name}</td>
+                            <td className="px-6 py-4">{c.phone}</td>
+                            <td className="px-6 py-4 text-slate-500">{c.email || 'N/A'}</td>
+                            <td className="px-6 py-4 font-mono font-bold text-slate-800">{c.rewardPoints ?? 0} pts</td>
+                            <td className="px-6 py-4">
+                              <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                                c.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                              }`}>
+                                {c.isActive ? 'ACTIVE' : 'SUSPENDED'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-right space-x-2">
+                              <button
+                                onClick={() => setEditCustomer(c)}
+                                className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs"
+                              >
+                                Edit Profile
+                              </button>
+                              <button
+                                onClick={() => handleToggleCustomer(c.id, !c.isActive)}
+                                className={`px-3 py-1 font-bold rounded-xl text-xs ${
+                                  c.isActive ? 'bg-rose-100 hover:bg-rose-200 text-rose-700' : 'bg-emerald-100 hover:bg-emerald-200 text-emerald-700'
+                                }`}
+                              >
+                                {c.isActive ? 'Suspend' : 'Activate'}
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
 
@@ -654,80 +709,82 @@ export const AdminDashboard: React.FC = () => {
                   <div className="p-6 border-b border-slate-100 flex justify-between items-center">
                     <h3 className="font-bold text-slate-900">Service Providers</h3>
                   </div>
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-slate-50 text-xs font-semibold text-slate-500 border-b border-slate-100 uppercase tracking-wider">
-                        <th className="px-6 py-4">Name</th>
-                        <th className="px-6 py-4">Business</th>
-                        <th className="px-6 py-4">Category</th>
-                        <th className="px-6 py-4">Avg Rating</th>
-                        <th className="px-6 py-4">Total Jobs</th>
-                        <th className="px-6 py-4">Commission</th>
-                        <th className="px-6 py-4">KYC Status</th>
-                        <th className="px-6 py-4 text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 text-sm">
-                      {providers.map((p) => (
-                        <tr key={p.id} className="hover:bg-slate-50/50">
-                          <td className="px-6 py-4 font-semibold text-slate-900">{p.name}</td>
-                          <td className="px-6 py-4">{p.businessName}</td>
-                          <td className="px-6 py-4 font-bold text-slate-500">{p.serviceCategory}</td>
-                          <td className="px-6 py-4 font-bold text-amber-500">{p.ratingCache} ★</td>
-                          <td className="px-6 py-4 font-semibold">{p.totalJobs}</td>
-                          <td className="px-6 py-4 font-bold text-slate-900">{p.commissionPercentage ?? 10}%</td>
-                          <td className="px-6 py-4">
-                            <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                              p.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' :
-                              p.status === 'PENDING_REVIEW' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'
-                            }`}>
-                              {p.status}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-right space-x-2">
-                            <button
-                              onClick={() => setEditProvider(p)}
-                              className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs"
-                            >
-                              Settings
-                            </button>
-                            {p.status === 'PENDING_REVIEW' && (
-                              <>
-                                <button
-                                  onClick={() => handleApproveProvider(p.id)}
-                                  className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs"
-                                >
-                                  Approve
-                                </button>
-                                <button
-                                  onClick={() => handleRejectProvider(p.id)}
-                                  className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs"
-                                >
-                                  Reject
-                                </button>
-                              </>
-                            )}
-                            {p.status === 'APPROVED' && (
-                              <button
-                                onClick={() => handleToggleProvider(p.id, 'SUSPENDED')}
-                                className="px-3 py-1 bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold rounded-xl text-xs"
-                              >
-                                Suspend
-                              </button>
-                            )}
-                            {p.status === 'SUSPENDED' && (
-                              <button
-                                onClick={() => handleToggleProvider(p.id, 'APPROVED')}
-                                className="px-3 py-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 font-bold rounded-xl text-xs"
-                              >
-                                Reactivate
-                              </button>
-                            )}
-                          </td>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse min-w-[800px]">
+                      <thead>
+                        <tr className="bg-slate-50 text-xs font-semibold text-slate-500 border-b border-slate-100 uppercase tracking-wider">
+                          <th className="px-6 py-4">Name</th>
+                          <th className="px-6 py-4">Business</th>
+                          <th className="px-6 py-4">Category</th>
+                          <th className="px-6 py-4">Avg Rating</th>
+                          <th className="px-6 py-4">Total Jobs</th>
+                          <th className="px-6 py-4">Commission</th>
+                          <th className="px-6 py-4">KYC Status</th>
+                          <th className="px-6 py-4 text-right">Actions</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-sm">
+                        {providers.map((p) => (
+                          <tr key={p.id} className="hover:bg-slate-50/50">
+                            <td className="px-6 py-4 font-semibold text-slate-900">{p.name}</td>
+                            <td className="px-6 py-4">{p.businessName}</td>
+                            <td className="px-6 py-4 font-bold text-slate-500">{p.serviceCategory}</td>
+                            <td className="px-6 py-4 font-bold text-amber-500">{p.ratingCache} ★</td>
+                            <td className="px-6 py-4 font-semibold">{p.totalJobs}</td>
+                            <td className="px-6 py-4 font-bold text-slate-900">{p.commissionPercentage ?? 10}%</td>
+                            <td className="px-6 py-4">
+                              <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                                p.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' :
+                                p.status === 'PENDING_REVIEW' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'
+                              }`}>
+                                {p.status}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-right space-x-2">
+                              <button
+                                onClick={() => setEditProvider(p)}
+                                className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs"
+                              >
+                                Settings
+                              </button>
+                              {p.status === 'PENDING_REVIEW' && (
+                                <>
+                                  <button
+                                    onClick={() => handleApproveProvider(p.id)}
+                                    className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs"
+                                  >
+                                    Approve
+                                  </button>
+                                  <button
+                                    onClick={() => handleRejectProvider(p.id)}
+                                    className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs"
+                                  >
+                                    Reject
+                                  </button>
+                                </>
+                              )}
+                              {p.status === 'APPROVED' && (
+                                <button
+                                  onClick={() => handleToggleProvider(p.id, 'SUSPENDED')}
+                                  className="px-3 py-1 bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold rounded-xl text-xs"
+                                >
+                                  Suspend
+                                </button>
+                              )}
+                              {p.status === 'SUSPENDED' && (
+                                <button
+                                  onClick={() => handleToggleProvider(p.id, 'APPROVED')}
+                                  className="px-3 py-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 font-bold rounded-xl text-xs"
+                                >
+                                  Reactivate
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
 
@@ -788,62 +845,64 @@ export const AdminDashboard: React.FC = () => {
                   <div className="p-6 border-b border-slate-100">
                     <h3 className="font-bold text-slate-900">Manage Platform Booking Orders</h3>
                   </div>
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-slate-50 text-xs font-semibold text-slate-500 border-b border-slate-100 uppercase tracking-wider">
-                        <th className="px-6 py-4">Booking ID</th>
-                        <th className="px-6 py-4">Customer</th>
-                        <th className="px-6 py-4">Provider</th>
-                        <th className="px-6 py-4">Service</th>
-                        <th className="px-6 py-4">Amount</th>
-                        <th className="px-6 py-4">Status</th>
-                        <th className="px-6 py-4 text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 text-sm">
-                      {bookings.map((b) => (
-                        <tr key={b.id} className="hover:bg-slate-50/50">
-                          <td className="px-6 py-4 font-bold text-slate-900">#{b.id}</td>
-                          <td className="px-6 py-4">
-                            <p className="font-semibold text-slate-900">{b.user?.name}</p>
-                            <span className="text-xs text-slate-400">{b.user?.phone}</span>
-                          </td>
-                          <td className="px-6 py-4">
-                            <p className="font-semibold text-slate-900">{b.provider?.businessName || 'Auto Dispatch'}</p>
-                            <span className="text-xs text-slate-400">{b.provider?.name || 'Searching...'}</span>
-                          </td>
-                          <td className="px-6 py-4 font-semibold">{b.serviceListing?.name}</td>
-                          <td className="px-6 py-4 font-bold text-slate-900">Rs. {b.totalBill || b.amountNpr}</td>
-                          <td className="px-6 py-4">
-                            <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                              b.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800' :
-                              b.status === 'CANCELLED_BY_ADMIN' || b.status === 'CANCELLED_BY_CUSTOMER' ? 'bg-rose-100 text-rose-800' : 'bg-blue-100 text-blue-800'
-                            }`}>
-                              {b.status}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-right space-x-2">
-                            {b.status !== 'COMPLETED' && !b.status.startsWith('CANCELLED') && (
-                              <>
-                                <button
-                                  onClick={() => handleCancelBooking(b.id)}
-                                  className="px-3 py-1 bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold rounded-xl text-xs"
-                                >
-                                  Cancel Booking
-                                </button>
-                                <button
-                                  onClick={() => handleRefundBooking(b.id)}
-                                  className="px-3 py-1 bg-amber-100 hover:bg-amber-200 text-amber-700 font-bold rounded-xl text-xs"
-                                >
-                                  Refund
-                                </button>
-                              </>
-                            )}
-                          </td>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse min-w-[850px]">
+                      <thead>
+                        <tr className="bg-slate-50 text-xs font-semibold text-slate-500 border-b border-slate-100 uppercase tracking-wider">
+                          <th className="px-6 py-4">Booking ID</th>
+                          <th className="px-6 py-4">Customer</th>
+                          <th className="px-6 py-4">Provider</th>
+                          <th className="px-6 py-4">Service</th>
+                          <th className="px-6 py-4">Amount</th>
+                          <th className="px-6 py-4">Status</th>
+                          <th className="px-6 py-4 text-right">Actions</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-sm">
+                        {bookings.map((b) => (
+                          <tr key={b.id} className="hover:bg-slate-50/50">
+                            <td className="px-6 py-4 font-bold text-slate-900">#{b.id}</td>
+                            <td className="px-6 py-4">
+                              <p className="font-semibold text-slate-900">{b.user?.name}</p>
+                              <span className="text-xs text-slate-400">{b.user?.phone}</span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <p className="font-semibold text-slate-900">{b.provider?.businessName || 'Auto Dispatch'}</p>
+                              <span className="text-xs text-slate-400">{b.provider?.name || 'Searching...'}</span>
+                            </td>
+                            <td className="px-6 py-4 font-semibold">{b.serviceListing?.name}</td>
+                            <td className="px-6 py-4 font-bold text-slate-900">Rs. {b.totalBill || b.amountNpr}</td>
+                            <td className="px-6 py-4">
+                              <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                                b.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800' :
+                                b.status === 'CANCELLED_BY_ADMIN' || b.status === 'CANCELLED_BY_CUSTOMER' ? 'bg-rose-100 text-rose-800' : 'bg-blue-100 text-blue-800'
+                              }`}>
+                                {b.status}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-right space-x-2">
+                              {b.status !== 'COMPLETED' && !b.status.startsWith('CANCELLED') && (
+                                <>
+                                  <button
+                                    onClick={() => handleCancelBooking(b.id)}
+                                    className="px-3 py-1 bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold rounded-xl text-xs"
+                                  >
+                                    Cancel Booking
+                                  </button>
+                                  <button
+                                    onClick={() => handleRefundBooking(b.id)}
+                                    className="px-3 py-1 bg-amber-100 hover:bg-amber-200 text-amber-700 font-bold rounded-xl text-xs"
+                                  >
+                                    Refund
+                                  </button>
+                                </>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
 
@@ -935,43 +994,45 @@ export const AdminDashboard: React.FC = () => {
                     {payouts.length === 0 ? (
                       <p className="text-slate-500 text-sm text-center py-6">No payout requests pending.</p>
                     ) : (
-                      <table className="w-full text-left border-collapse">
-                        <thead>
-                          <tr className="bg-slate-50 text-xs font-semibold text-slate-500 border-b border-slate-100 uppercase tracking-wider">
-                            <th className="px-6 py-4">Request ID</th>
-                            <th className="px-6 py-4">Provider ID</th>
-                            <th className="px-6 py-4">Amount Requested</th>
-                            <th className="px-6 py-4">Date</th>
-                            <th className="px-6 py-4">Status</th>
-                            <th className="px-6 py-4 text-right">Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 text-sm">
-                          {payouts.map((p) => (
-                            <tr key={p.id}>
-                              <td className="px-6 py-4 font-bold text-slate-900">#{p.id}</td>
-                              <td className="px-6 py-4 font-semibold">Provider #{p.providerId}</td>
-                              <td className="px-6 py-4 font-bold text-slate-900">Rs. {p.amount}</td>
-                              <td className="px-6 py-4">{p.createdAt}</td>
-                              <td className="px-6 py-4">
-                                <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                                  p.status === 'RELEASED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                                }`}>
-                                  {p.status}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 text-right space-x-2">
-                                {p.status === 'PENDING' && (
-                                  <>
-                                    <button onClick={() => handleReleasePayout(p.id)} className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs">Release</button>
-                                    <button onClick={() => handleHoldPayout(p.id)} className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-xs">Hold</button>
-                                  </>
-                                )}
-                              </td>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse min-w-[700px]">
+                          <thead>
+                            <tr className="bg-slate-50 text-xs font-semibold text-slate-500 border-b border-slate-100 uppercase tracking-wider">
+                              <th className="px-6 py-4">Request ID</th>
+                              <th className="px-6 py-4">Provider ID</th>
+                              <th className="px-6 py-4">Amount Requested</th>
+                              <th className="px-6 py-4">Date</th>
+                              <th className="px-6 py-4">Status</th>
+                              <th className="px-6 py-4 text-right">Actions</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 text-sm">
+                            {payouts.map((p) => (
+                              <tr key={p.id}>
+                                <td className="px-6 py-4 font-bold text-slate-900">#{p.id}</td>
+                                <td className="px-6 py-4 font-semibold">Provider #{p.providerId}</td>
+                                <td className="px-6 py-4 font-bold text-slate-900">Rs. {p.amount}</td>
+                                <td className="px-6 py-4">{p.createdAt}</td>
+                                <td className="px-6 py-4">
+                                  <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                                    p.status === 'RELEASED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                                  }`}>
+                                    {p.status}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 text-right space-x-2">
+                                  {p.status === 'PENDING' && (
+                                    <>
+                                      <button onClick={() => handleReleasePayout(p.id)} className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs">Release</button>
+                                      <button onClick={() => handleHoldPayout(p.id)} className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-xs">Hold</button>
+                                    </>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     )}
                   </div>
 
@@ -979,30 +1040,32 @@ export const AdminDashboard: React.FC = () => {
                     <div className="p-6 border-b border-slate-100">
                       <h3 className="font-bold text-slate-900">Transaction History Log</h3>
                     </div>
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-slate-50 text-xs font-semibold text-slate-500 border-b border-slate-100 uppercase tracking-wider">
-                          <th className="px-6 py-4">Transaction ID</th>
-                          <th className="px-6 py-4">Booking</th>
-                          <th className="px-6 py-4">Gross Amount</th>
-                          <th className="px-6 py-4">Commission</th>
-                          <th className="px-6 py-4">Provider Share</th>
-                          <th className="px-6 py-4">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 text-sm">
-                        {transactions.map((t) => (
-                          <tr key={t.id}>
-                            <td className="px-6 py-4 font-mono text-xs">{t.transactionId}</td>
-                            <td className="px-6 py-4 font-semibold">Booking #{t.bookingId}</td>
-                            <td className="px-6 py-4 text-slate-900 font-bold">Rs. {t.amount}</td>
-                            <td className="px-6 py-4 text-rose-600 font-semibold">Rs. {t.commission}</td>
-                            <td className="px-6 py-4 text-emerald-600 font-semibold">Rs. {t.providerEarnings}</td>
-                            <td className="px-6 py-4 font-bold">{t.status}</td>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse min-w-[700px]">
+                        <thead>
+                          <tr className="bg-slate-50 text-xs font-semibold text-slate-500 border-b border-slate-100 uppercase tracking-wider">
+                            <th className="px-6 py-4">Transaction ID</th>
+                            <th className="px-6 py-4">Booking</th>
+                            <th className="px-6 py-4">Gross Amount</th>
+                            <th className="px-6 py-4">Commission</th>
+                            <th className="px-6 py-4">Provider Share</th>
+                            <th className="px-6 py-4">Status</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 text-sm">
+                          {transactions.map((t) => (
+                            <tr key={t.id}>
+                              <td className="px-6 py-4 font-mono text-xs">{t.transactionId}</td>
+                              <td className="px-6 py-4 font-semibold">Booking #{t.bookingId}</td>
+                              <td className="px-6 py-4 text-slate-900 font-bold">Rs. {t.amount}</td>
+                              <td className="px-6 py-4 text-rose-600 font-semibold">Rs. {t.commission}</td>
+                              <td className="px-6 py-4 text-emerald-600 font-semibold">Rs. {t.providerEarnings}</td>
+                              <td className="px-6 py-4 font-bold">{t.status}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1200,30 +1263,32 @@ export const AdminDashboard: React.FC = () => {
                   <div className="p-6 border-b border-slate-100">
                     <h3 className="font-bold text-slate-900">Admin Audit Trails</h3>
                   </div>
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-slate-50 text-xs font-semibold text-slate-500 border-b border-slate-100 uppercase tracking-wider">
-                        <th className="px-6 py-4">Timestamp</th>
-                        <th className="px-6 py-4">Admin</th>
-                        <th className="px-6 py-4">Action Description</th>
-                        <th className="px-6 py-4">Entity</th>
-                        <th className="px-6 py-4">Old Value</th>
-                        <th className="px-6 py-4">New Value</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 text-sm">
-                      {auditLogs.map((log) => (
-                        <tr key={log.id}>
-                          <td className="px-6 py-4 text-xs text-slate-500">{log.timestamp}</td>
-                          <td className="px-6 py-4 font-bold text-slate-900">{log.admin}</td>
-                          <td className="px-6 py-4 font-semibold">{log.action}</td>
-                          <td className="px-6 py-4 font-semibold text-slate-400">{log.entity}</td>
-                          <td className="px-6 py-4 font-mono text-xs max-w-xs truncate">{log.oldValue}</td>
-                          <td className="px-6 py-4 font-mono text-xs max-w-xs truncate">{log.newValue}</td>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse min-w-[800px]">
+                      <thead>
+                        <tr className="bg-slate-50 text-xs font-semibold text-slate-500 border-b border-slate-100 uppercase tracking-wider">
+                          <th className="px-6 py-4">Timestamp</th>
+                          <th className="px-6 py-4">Admin</th>
+                          <th className="px-6 py-4">Action Description</th>
+                          <th className="px-6 py-4">Entity</th>
+                          <th className="px-6 py-4">Old Value</th>
+                          <th className="px-6 py-4">New Value</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-sm">
+                        {auditLogs.map((log) => (
+                          <tr key={log.id}>
+                            <td className="px-6 py-4 text-xs text-slate-500">{log.timestamp}</td>
+                            <td className="px-6 py-4 font-bold text-slate-900">{log.admin}</td>
+                            <td className="px-6 py-4 font-semibold">{log.action}</td>
+                            <td className="px-6 py-4 font-semibold text-slate-400">{log.entity}</td>
+                            <td className="px-6 py-4 font-mono text-xs max-w-xs truncate">{log.oldValue}</td>
+                            <td className="px-6 py-4 font-mono text-xs max-w-xs truncate">{log.newValue}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </>
@@ -1255,6 +1320,34 @@ export const AdminDashboard: React.FC = () => {
                   onChange={(e) => setEditCustomer({ ...editCustomer, email: e.target.value })}
                   className="w-full p-2.5 border border-slate-200 rounded-xl"
                 />
+              </div>
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
+                <span className="text-xs font-extrabold uppercase text-slate-400 tracking-wider block">Adjust Reward Points</span>
+                <p className="text-xs text-slate-500 font-semibold">
+                  Current Balance: <span className="font-bold text-slate-800 font-mono">{editCustomer.rewardPoints ?? 0} pts</span>
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="col-span-1">
+                    <label className="block text-[10px] text-slate-400 font-bold uppercase mb-1">Points</label>
+                    <input
+                      type="number"
+                      placeholder="e.g. +50, -30"
+                      value={pointsAdjustAmt}
+                      onChange={(e) => setPointsAdjustAmt(e.target.value)}
+                      className="w-full p-2 border border-slate-200 rounded-lg text-xs bg-white"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-[10px] text-slate-400 font-bold uppercase mb-1">Reason / Description</label>
+                    <input
+                      type="text"
+                      placeholder="Reason for adjustment"
+                      value={pointsAdjustDesc}
+                      onChange={(e) => setPointsAdjustDesc(e.target.value)}
+                      className="w-full p-2 border border-slate-200 rounded-lg text-xs bg-white"
+                    />
+                  </div>
+                </div>
               </div>
               <div className="flex gap-2 justify-end pt-2">
                 <button type="button" onClick={() => setEditCustomer(null)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl">Cancel</button>
@@ -1299,6 +1392,43 @@ export const AdminDashboard: React.FC = () => {
                   className="w-full p-2.5 border border-slate-200 rounded-xl"
                   required
                 />
+              </div>
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
+                <span className="text-xs font-extrabold uppercase text-slate-400 tracking-wider block">Award Performance Cash Incentive</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] text-slate-400 font-bold uppercase mb-1">Amount (Rs.)</label>
+                    <input
+                      type="number"
+                      placeholder="e.g. 500, 1000"
+                      value={incentiveAmt}
+                      onChange={(e) => setIncentiveAmt(e.target.value)}
+                      className="w-full p-2 border border-slate-200 rounded-lg text-xs bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-slate-400 font-bold uppercase mb-1">Reason Code</label>
+                    <select
+                      value={incentiveReason}
+                      onChange={(e) => setIncentiveReason(e.target.value)}
+                      className="w-full p-2 border border-slate-200 rounded-lg text-xs bg-white font-bold"
+                    >
+                      <option value="SPECIAL_CAMPAIGN">Special Campaign</option>
+                      <option value="GOOD_BEHAVIOR_BONUS">Good Behavior Bonus</option>
+                      <option value="COMPENSATION">Compensation / Re-imbursement</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] text-slate-400 font-bold uppercase mb-1">Detailed Description</label>
+                  <input
+                    type="text"
+                    placeholder="Describe why this bonus is being awarded"
+                    value={incentiveDesc}
+                    onChange={(e) => setIncentiveDesc(e.target.value)}
+                    className="w-full p-2 border border-slate-200 rounded-lg text-xs bg-white"
+                  />
+                </div>
               </div>
               <div className="flex gap-2 justify-end pt-2">
                 <button type="button" onClick={() => setEditProvider(null)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl">Cancel</button>

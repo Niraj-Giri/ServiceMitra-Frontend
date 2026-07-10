@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../../api/client';
-import type { Booking } from '../../types';
+import type { Booking, TaskRequest, Quote } from '../../types';
+import { getAvailableTasks, submitQuote, getMyQuotes, respondToCounter, withdrawQuote, getProviderTasks } from '../../api/tasks';
 import { 
   TrendingUp, Award, Briefcase, 
   CheckCircle2, XCircle, Clock, Filter, AlertTriangle
@@ -12,7 +13,7 @@ import {
   XAxis, YAxis, Tooltip, CartesianGrid 
 } from 'recharts';
 
-type Tab = 'CURRENT_JOB' | 'HISTORY' | 'EARNINGS' | 'SETTINGS' | 'DISPUTES';
+type Tab = 'CURRENT_JOB' | 'HISTORY' | 'EARNINGS' | 'INCENTIVES' | 'SETTINGS' | 'DISPUTES' | 'MARKETPLACE' | 'MY_BIDS';
 
 export const ProviderDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -20,6 +21,31 @@ export const ProviderDashboard: React.FC = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('CURRENT_JOB');
+
+  // Marketplace States
+  const [availableTasks, setAvailableTasks] = useState<TaskRequest[]>([]);
+  const [loadingTasks, setLoadingTasks] = useState(false);
+  const [submittingQuoteId, setSubmittingQuoteId] = useState<number | null>(null);
+  const [quotePrice, setQuotePrice] = useState<string>('');
+  const [quoteMessage, setQuoteMessage] = useState<string>('');
+  const [myQuotes, setMyQuotes] = useState<Quote[]>([]);
+  const [loadingQuotes, setLoadingQuotes] = useState(false);
+
+  // Provider Incentives & Bonuses States
+  const [incentivesData, setIncentivesData] = useState<{ totalEarnedIncentives: number; pendingPayoutIncentives: number; incentives: any[] }>({
+    totalEarnedIncentives: 0,
+    pendingPayoutIncentives: 0,
+    incentives: []
+  });
+
+  const fetchIncentivesData = async () => {
+    try {
+      const response = await apiClient.get('/incentives/provider');
+      setIncentivesData(response.data);
+    } catch (err) {
+      console.error('Failed to fetch provider incentives:', err);
+    }
+  };
   
   // Settings State
   const [isOnline, setIsOnline] = useState(user?.provider?.isOnline ?? true);
@@ -87,8 +113,22 @@ export const ProviderDashboard: React.FC = () => {
       return;
     }
     try {
-      const response = await apiClient.get('/bookings/provider');
-      setBookings(response.data);
+      const tasks = await getProviderTasks();
+      const mapped = tasks.map(t => ({
+        id: t.id,
+        serviceName: t.serviceName || t.category,
+        scheduledAt: t.preferredDate || t.createdAt,
+        user: t.customer ? { name: t.customer.name, phone: t.customer.phone } : null,
+        address: t.address,
+        notes: t.description,
+        status: t.status,
+        amountNpr: t.finalAmountNpr,
+        baseAmount: t.finalAmountNpr,
+        totalBill: t.finalAmountNpr,
+        platformFee: t.platformFee,
+        providerEarnings: t.finalAmountNpr ? t.finalAmountNpr * 0.90 : 0
+      })) as any;
+      setBookings(mapped);
     } catch (err) {
       console.error(err);
     } finally {
@@ -102,6 +142,111 @@ export const ProviderDashboard: React.FC = () => {
     const interval = setInterval(fetchBookings, 5000);
     return () => clearInterval(interval);
   }, [user]);
+
+  useEffect(() => {
+    if (activeTab === 'INCENTIVES') {
+      fetchIncentivesData();
+    }
+    if (activeTab === 'MARKETPLACE') {
+      fetchAvailableTasks();
+    }
+    if (activeTab === 'MY_BIDS') {
+      fetchMyQuotes();
+    }
+  }, [activeTab]);
+
+  const fetchAvailableTasks = async () => {
+    if (user?.provider?.status !== 'APPROVED') return;
+    setLoadingTasks(true);
+    try {
+      const tasks = await getAvailableTasks();
+      setAvailableTasks(tasks);
+    } catch (err) {
+      console.error('Failed to fetch available tasks:', err);
+    } finally {
+      setLoadingTasks(false);
+    }
+  };
+
+  const handleSubmitQuote = async (taskId: number) => {
+    if (!quotePrice || Number(quotePrice) <= 0) {
+      setAlertConfig({
+        title: "Validation Error",
+        message: "Please enter a valid quote price.",
+        type: "error"
+      });
+      return;
+    }
+    try {
+      await submitQuote(taskId, Number(quotePrice), quoteMessage);
+      setAlertConfig({
+        title: "Quote Submitted",
+        message: "Your bid has been submitted successfully!",
+        type: "success"
+      });
+      setSubmittingQuoteId(null);
+      setQuotePrice('');
+      setQuoteMessage('');
+      fetchAvailableTasks();
+    } catch (err: any) {
+      setAlertConfig({
+        title: "Failed to Submit Quote",
+        message: err.response?.data?.message || "Something went wrong.",
+        type: "error"
+      });
+    }
+  };
+
+  const fetchMyQuotes = async () => {
+    if (user?.provider?.status !== 'APPROVED') return;
+    setLoadingQuotes(true);
+    try {
+      const quotes = await getMyQuotes();
+      setMyQuotes(quotes);
+    } catch (err) {
+      console.error('Failed to fetch my quotes:', err);
+    } finally {
+      setLoadingQuotes(false);
+    }
+  };
+
+  const handleRespondToCounter = async (taskId: number, quoteId: number, accept: boolean) => {
+    try {
+      await respondToCounter(taskId, quoteId, accept);
+      setAlertConfig({
+        title: accept ? "Counter Accepted" : "Counter Declined",
+        message: accept ? "You accepted the counter-offer! Job is now assigned to you." : "You declined the counter-offer.",
+        type: accept ? "success" : "info"
+      });
+      fetchMyQuotes();
+      fetchBookings(); // refresh active bookings list too
+    } catch (err: any) {
+      setAlertConfig({
+        title: "Error",
+        message: err.response?.data?.message || "Action failed.",
+        type: "error"
+      });
+    }
+  };
+
+  const handleWithdrawQuote = async (taskId: number, quoteId: number) => {
+    if (!window.confirm("Are you sure you want to withdraw this quote?")) return;
+    try {
+      await withdrawQuote(taskId, quoteId);
+      setAlertConfig({
+        title: "Quote Withdrawn",
+        message: "Your bid has been successfully withdrawn.",
+        type: "success"
+      });
+      fetchMyQuotes();
+    } catch (err: any) {
+      setAlertConfig({
+        title: "Error",
+        message: err.response?.data?.message || "Failed to withdraw quote.",
+        type: "error"
+      });
+    }
+  };
 
   const [activeOtpBookingId, setActiveOtpBookingId] = useState<number | null>(null);
   const [inputOtp, setInputOtp] = useState('');
@@ -117,14 +262,17 @@ export const ProviderDashboard: React.FC = () => {
 
   const handleStartJob = async (id: number) => {
     try {
-      await apiClient.put(`/bookings/${id}/start?otp=${inputOtp}`);
-      setActiveOtpBookingId(null);
-      setInputOtp('');
+      await startTask(id);
+      setAlertConfig({
+        title: "Job Started",
+        message: "You have started the job successfully!",
+        type: "success"
+      });
       fetchBookings();
     } catch (err: any) {
       setAlertConfig({
         title: "Start Job Failed",
-        message: err.response?.data?.message || 'Failed to start job. Please check the OTP.',
+        message: err.response?.data?.message || 'Failed to start job.',
         type: "error"
       });
     }
@@ -132,7 +280,12 @@ export const ProviderDashboard: React.FC = () => {
 
   const handleCompleteJob = async (id: number) => {
     try {
-      await apiClient.post(`/bookings/${id}/complete`);
+      await completeTask(id);
+      setAlertConfig({
+        title: "Job Completed",
+        message: "You have completed the job successfully!",
+        type: "success"
+      });
       fetchBookings();
       await fetchUser();
     } catch (err: any) {
@@ -330,41 +483,12 @@ export const ProviderDashboard: React.FC = () => {
 
             {(booking.status || '').toUpperCase() === 'ACCEPTED' && (
               <div className="mt-4 border-t border-gray-100 pt-4">
-                {activeOtpBookingId === booking.id ? (
-                  <div className="space-y-2 bg-slate-50 p-3.5 rounded-xl border border-slate-100">
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Enter Customer OTP to Start</label>
-                    <div className="flex gap-2">
-                      <input 
-                        type="text" 
-                        maxLength={4}
-                        placeholder="E.g. 1234"
-                        value={inputOtp}
-                        onChange={e => setInputOtp(e.target.value.replace(/\D/g, ''))}
-                        className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-center tracking-widest text-lg font-bold"
-                      />
-                      <button 
-                        onClick={() => handleStartJob(booking.id)}
-                        disabled={inputOtp.length !== 4}
-                        className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 rounded-lg transition disabled:opacity-50"
-                      >
-                        Start
-                      </button>
-                      <button 
-                        onClick={() => { setActiveOtpBookingId(null); setInputOtp(''); }}
-                        className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold px-4 rounded-lg transition"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <button 
-                    onClick={() => setActiveOtpBookingId(booking.id)}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg transition"
-                  >
-                    Start Job (Enter OTP)
-                  </button>
-                )}
+                <button 
+                  onClick={() => handleStartJob(booking.id)}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg transition"
+                >
+                  Start Job
+                </button>
               </div>
             )}
 
@@ -413,36 +537,54 @@ export const ProviderDashboard: React.FC = () => {
           <p className="text-sm text-gray-500 truncate">{user?.provider?.serviceCategory || 'Service Provider'}</p>
         </div>
 
-        <nav className="flex flex-col space-y-1">
+        <nav className="flex flex-row md:flex-col overflow-x-auto md:overflow-x-visible space-x-1 md:space-x-0 md:space-y-1 pb-3 md:pb-0 whitespace-nowrap border-b md:border-b-0 border-slate-100">
           <button 
             onClick={() => setActiveTab('CURRENT_JOB')}
-            className={`text-left px-4 py-3 rounded-lg font-medium transition ${activeTab === 'CURRENT_JOB' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
+            className={`text-center md:text-left px-4 py-3 rounded-lg font-medium transition ${activeTab === 'CURRENT_JOB' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
           >
             Current Job ({currentJobs.length})
           </button>
           <button 
             onClick={() => setActiveTab('HISTORY')}
-            className={`text-left px-4 py-3 rounded-lg font-medium transition ${activeTab === 'HISTORY' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
+            className={`text-center md:text-left px-4 py-3 rounded-lg font-medium transition ${activeTab === 'HISTORY' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
           >
             Job History
           </button>
           <button 
             onClick={() => setActiveTab('EARNINGS')}
-            className={`text-left px-4 py-3 rounded-lg font-medium transition ${activeTab === 'EARNINGS' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
+            className={`text-center md:text-left px-4 py-3 rounded-lg font-medium transition ${activeTab === 'EARNINGS' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
           >
             Earnings & Stats
           </button>
           <button 
+            onClick={() => setActiveTab('INCENTIVES')}
+            className={`text-center md:text-left px-4 py-3 rounded-lg font-medium transition ${activeTab === 'INCENTIVES' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
+          >
+            Milestones & Incentives
+          </button>
+          <button 
             onClick={() => setActiveTab('SETTINGS')}
-            className={`text-left px-4 py-3 rounded-lg font-medium transition ${activeTab === 'SETTINGS' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
+            className={`text-center md:text-left px-4 py-3 rounded-lg font-medium transition ${activeTab === 'SETTINGS' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
           >
             Settings & Availability
           </button>
           <button 
             onClick={() => setActiveTab('DISPUTES')}
-            className={`text-left px-4 py-3 rounded-lg font-medium transition ${activeTab === 'DISPUTES' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
+            className={`text-center md:text-left px-4 py-3 rounded-lg font-medium transition ${activeTab === 'DISPUTES' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
           >
             Disputes & Complaints ({complaints.length})
+          </button>
+          <button 
+            onClick={() => setActiveTab('MARKETPLACE')}
+            className={`text-center md:text-left px-4 py-3 rounded-lg font-medium transition ${activeTab === 'MARKETPLACE' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
+          >
+            Find Jobs (Marketplace)
+          </button>
+          <button 
+            onClick={() => setActiveTab('MY_BIDS')}
+            className={`text-center md:text-left px-4 py-3 rounded-lg font-medium transition ${activeTab === 'MY_BIDS' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
+          >
+            My Bids (Quotes)
           </button>
         </nav>
       </div>
@@ -455,7 +597,7 @@ export const ProviderDashboard: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
               <div className="text-sm text-gray-500 font-medium mb-1">Jobs Completed</div>
-              <div className="text-2xl font-bold text-gray-900">{user?.provider?.totalJobs || 0}</div>
+              <div className="text-2xl font-bold text-gray-900">{completedJobsCount}</div>
             </div>
             <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
               <div className="text-sm text-gray-500 font-medium mb-1">Rating</div>
@@ -633,6 +775,294 @@ export const ProviderDashboard: React.FC = () => {
                       })}
                     </tbody>
                   </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'INCENTIVES' && (
+            <div className="space-y-6 animate-fadeIn">
+              <h3 className="text-lg font-semibold mb-6 text-gray-900 border-b pb-4">Milestones & Cash Incentives</h3>
+
+              {/* Incentives Summary Stat Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-emerald-50/40 border border-emerald-100 p-5 rounded-2xl">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Total Earned Bonuses</span>
+                  <div className="text-2xl font-black text-emerald-600 font-mono">
+                    Rs. {Number(incentivesData.totalEarnedIncentives).toFixed(2)}
+                  </div>
+                  <span className="text-[10px] text-slate-400 block mt-1">Milestone awards & promotional bonuses</span>
+                </div>
+
+                <div className="bg-blue-50/40 border border-blue-100 p-5 rounded-2xl">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Pending Release Payout</span>
+                  <div className="text-2xl font-black text-blue-600 font-mono">
+                    Rs. {Number(incentivesData.pendingPayoutIncentives).toFixed(2)}
+                  </div>
+                  <span className="text-[10px] text-slate-400 block mt-1">To be released with the next payout batch</span>
+                </div>
+              </div>
+
+              {/* Milestone Progress Bar */}
+              <div className="bg-white border border-slate-100 p-6 rounded-2xl shadow-sm space-y-4">
+                <div>
+                  <h4 className="font-extrabold text-slate-800 text-sm">Completed Jobs Milestone Tracker</h4>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Earn Rs. 500.00 cash bonus for every 5 completed jobs!
+                  </p>
+                </div>
+                
+                {(() => {
+                  const totalJobs = user?.provider?.totalJobs || 0;
+                  const currentCycle = totalJobs % 5;
+                  const needed = 5 - currentCycle;
+                  const percent = (currentCycle / 5) * 100;
+                  return (
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-xs font-bold">
+                        <span className="text-slate-600">Milestone Progress: {currentCycle}/5 jobs</span>
+                        <span className="text-blue-600">{needed} more jobs to unlock Rs. 500 bonus!</span>
+                      </div>
+                      <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
+                        <div 
+                          className="bg-blue-600 h-full rounded-full transition-all duration-500" 
+                          style={{ width: `${percent}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Incentives Ledger List */}
+              <div className="bg-white border border-slate-100 p-6 rounded-2xl shadow-sm">
+                <h4 className="font-extrabold text-slate-900 text-sm mb-4">Incentives Payout Ledger</h4>
+                
+                {!incentivesData.incentives || incentivesData.incentives.length === 0 ? (
+                  <div className="text-center py-10 text-slate-400 text-xs italic">
+                    No milestone bonuses or incentives recorded yet. Complete jobs to start earning!
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase tracking-wider">
+                          <th className="pb-3 font-semibold">Bonus Type</th>
+                          <th className="pb-3 font-semibold">Earned Date</th>
+                          <th className="pb-3 font-semibold">Amount</th>
+                          <th className="pb-3 font-semibold text-right">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {incentivesData.incentives.map((inc: any) => (
+                          <tr key={inc.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition">
+                            <td className="py-3 font-bold text-slate-800">
+                              <div>{inc.description}</div>
+                              {inc.bookingId && <div className="text-[10px] text-slate-400 font-normal">Linked to Booking #{inc.bookingId}</div>}
+                            </td>
+                            <td className="py-3 text-slate-500 font-semibold">{new Date(inc.createdAt).toLocaleString()}</td>
+                            <td className="py-3 font-bold text-slate-800">Rs. {Number(inc.amount).toFixed(2)}</td>
+                            <td className="py-3 text-right">
+                              <span className={`px-2 py-0.5 rounded font-extrabold text-[10px] uppercase tracking-wider ${
+                                inc.status === 'PAID' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                              }`}>
+                                {inc.status === 'PAID' ? 'Released' : 'Pending Payout'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'MARKETPLACE' && (
+            <div>
+              <h3 className="text-lg font-semibold mb-4 text-gray-900 border-b pb-4">Available Marketplace Jobs</h3>
+              {loadingTasks ? (
+                <div className="text-center py-10 text-gray-500">Loading open tasks...</div>
+              ) : availableTasks.length === 0 ? (
+                <div className="text-gray-500 text-sm italic py-8">No open jobs found in your category or area.</div>
+              ) : (
+                <div className="grid grid-cols-1 gap-6">
+                  {availableTasks.map(task => (
+                    <div key={task.id} className="p-5 border border-slate-100 rounded-2xl bg-white shadow-sm hover:border-blue-500 transition space-y-4">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="text-lg font-extrabold text-slate-900">{task.title}</h4>
+                          <span className="inline-block mt-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700">
+                            {task.serviceName || task.category}
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">Budget Range</span>
+                          <span className="text-lg font-black text-emerald-600">
+                            Rs. {task.budgetMinNpr} - Rs. {task.budgetMaxNpr}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 p-3.5 rounded-xl border border-slate-100">
+                        {task.description}
+                      </p>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-slate-500 font-bold">
+                        {task.address && (
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-base">📍</span> {task.address}
+                          </div>
+                        )}
+                        {task.preferredDate && (
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-base">📅</span> Preferred Date: {new Date(task.preferredDate).toLocaleDateString()}
+                          </div>
+                        )}
+                      </div>
+
+                      {submittingQuoteId === task.id ? (
+                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-3">
+                          <h5 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Submit Your Quote</h5>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 mb-1">Your Price (NPR)</label>
+                              <input 
+                                type="number" 
+                                placeholder="E.g. 1200"
+                                value={quotePrice}
+                                onChange={e => setQuotePrice(e.target.value)}
+                                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-semibold focus:ring-1 focus:ring-blue-500 focus:outline-none bg-white"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 mb-1">Pitch / Message</label>
+                              <input 
+                                type="text" 
+                                placeholder="E.g. I can do it today..."
+                                value={quoteMessage}
+                                onChange={e => setQuoteMessage(e.target.value)}
+                                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-500 focus:outline-none bg-white"
+                              />
+                            </div>
+                          </div>
+                          <div className="flex gap-2 justify-end pt-2">
+                            <button 
+                              onClick={() => handleSubmitQuote(task.id)}
+                              className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2 rounded-lg transition"
+                            >
+                              Submit Bid
+                            </button>
+                            <button 
+                              onClick={() => { setSubmittingQuoteId(null); setQuotePrice(''); setQuoteMessage(''); }}
+                              className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs px-4 py-2 rounded-lg transition"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button 
+                          onClick={() => setSubmittingQuoteId(task.id)}
+                          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl transition shadow-sm text-sm"
+                        >
+                          Offer a Quote / Bid
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'MY_BIDS' && (
+            <div>
+              <h3 className="text-lg font-semibold mb-4 text-gray-900 border-b pb-4">My Submitted Bids (Quotes)</h3>
+              {loadingQuotes ? (
+                <div className="text-center py-10 text-gray-500">Loading your bids...</div>
+              ) : myQuotes.length === 0 ? (
+                <div className="text-gray-500 text-sm italic py-8">You have not submitted any bids yet. Go to 'Find Jobs' to submit your first bid.</div>
+              ) : (
+                <div className="space-y-4">
+                  {myQuotes.map(quote => {
+                    const statusColors: Record<string, string> = {
+                      PENDING: 'bg-blue-100 text-blue-700',
+                      COUNTER_OFFERED: 'bg-amber-100 text-amber-700 animate-pulse',
+                      ACCEPTED: 'bg-green-100 text-green-700',
+                      REJECTED: 'bg-red-100 text-red-700',
+                      WITHDRAWN: 'bg-slate-100 text-slate-500',
+                    };
+                    return (
+                      <div key={quote.id} className="p-4 border border-slate-100 rounded-2xl bg-white shadow-sm hover:border-blue-200 transition space-y-3">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="font-extrabold text-slate-800 text-sm">Quote #{quote.id}</h4>
+                            <p className="text-xs text-slate-400 mt-0.5">Submitted on: {new Date(quote.createdAt).toLocaleString()}</p>
+                          </div>
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${statusColors[quote.status] ?? 'bg-slate-100 text-slate-500'}`}>
+                            {quote.status.replace('_', ' ')}
+                          </span>
+                        </div>
+
+                        {quote.message && (
+                          <div className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100 italic">
+                            "{quote.message}"
+                          </div>
+                        )}
+
+                        <div className="flex justify-between items-center text-xs font-bold pt-2 border-t border-slate-50">
+                          <div className="space-y-1">
+                            <span className="text-[10px] text-slate-400 block uppercase tracking-wider">Your Offer</span>
+                            <span className="text-sm font-black text-slate-800">Rs. {quote.quotedPriceNpr.toLocaleString()}</span>
+                          </div>
+
+                          {quote.status === 'COUNTER_OFFERED' && quote.counterPriceNpr && (
+                            <div className="space-y-1 text-right">
+                              <span className="text-[10px] text-amber-500 block uppercase tracking-wider">Customer Counter Offer</span>
+                              <span className="text-sm font-black text-amber-600">Rs. {quote.counterPriceNpr.toLocaleString()}</span>
+                            </div>
+                          )}
+
+                          {quote.status === 'ACCEPTED' && quote.finalPriceNpr && (
+                            <div className="space-y-1 text-right">
+                              <span className="text-[10px] text-emerald-500 block uppercase tracking-wider">Final Agreed Price</span>
+                              <span className="text-sm font-black text-emerald-600">Rs. {quote.finalPriceNpr.toLocaleString()}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {quote.status === 'COUNTER_OFFERED' && (
+                          <div className="flex gap-2 pt-3 border-t border-slate-50">
+                            <button 
+                              onClick={() => handleRespondToCounter(quote.taskRequestId, quote.id, true)}
+                              className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold text-xs py-2 rounded-xl transition shadow-sm"
+                            >
+                              Accept Counter Offer
+                            </button>
+                            <button 
+                              onClick={() => handleRespondToCounter(quote.taskRequestId, quote.id, false)}
+                              className="flex-1 bg-red-50 hover:bg-red-100 text-red-600 font-bold text-xs py-2 rounded-xl transition border border-red-100"
+                            >
+                              Decline
+                            </button>
+                          </div>
+                        )}
+
+                        {quote.status === 'PENDING' && (
+                          <div className="pt-3 border-t border-slate-50 flex justify-end">
+                            <button 
+                              onClick={() => handleWithdrawQuote(quote.taskRequestId, quote.id)}
+                              className="bg-slate-100 hover:bg-red-50 text-slate-500 hover:text-red-600 font-bold text-xs px-4 py-2 rounded-xl transition border border-slate-200/60 hover:border-red-200"
+                            >
+                              Withdraw Quote
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

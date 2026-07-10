@@ -81,13 +81,22 @@ export const TopBar: React.FC = () => {
                   </Link>
                   
                   {user.role === 'CUSTOMER' && (
-                    <Link 
-                      to="/customer/dashboard" 
-                      className="block px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition"
-                      onClick={() => setIsDropdownOpen(false)}
-                    >
-                      My Bookings
-                    </Link>
+                    <>
+                      <Link 
+                        to="/customer/dashboard" 
+                        className="block px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition"
+                        onClick={() => setIsDropdownOpen(false)}
+                      >
+                        My Bookings
+                      </Link>
+                      <Link 
+                        to="/customer/dashboard?tab=loyalty" 
+                        className="block px-4 py-2.5 text-sm font-semibold text-blue-600 hover:bg-blue-50 transition"
+                        onClick={() => setIsDropdownOpen(false)}
+                      >
+                        🎁 Referrals & Rewards
+                      </Link>
+                    </>
                   )}
                   {user.role === 'PROVIDER' && (
                     <Link 

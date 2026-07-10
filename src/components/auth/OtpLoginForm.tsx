@@ -13,6 +13,7 @@ export const OtpLoginForm: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'LOGIN' | 'REGISTER'>('LOGIN');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [referredBy, setReferredBy] = useState('');
   const { fetchUser } = useAuth();
 
   const handleSendOtp = async (e: React.FormEvent) => {
@@ -53,7 +54,8 @@ export const OtpLoginForm: React.FC = () => {
         name,
         phone,
         email,
-        role: 'CUSTOMER'
+        role: 'CUSTOMER',
+        referredBy: referredBy.trim() || undefined
       });
       await fetchUser();
     } catch (err: any) {
@@ -214,6 +216,17 @@ export const OtpLoginForm: React.FC = () => {
                 placeholder="john@example.com"
                 className="focus-ring w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-base font-bold text-slate-900 placeholder:text-slate-400"
                 required
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-extrabold text-slate-800">Referral Code / Referrer Phone (Optional)</label>
+              <input
+                type="text"
+                value={referredBy}
+                onChange={(e) => setReferredBy(e.target.value)}
+                placeholder="Referrer's phone number"
+                className="focus-ring w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-base font-bold text-slate-900 placeholder:text-slate-400"
               />
             </div>
 

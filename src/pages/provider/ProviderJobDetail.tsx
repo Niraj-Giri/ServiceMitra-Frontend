@@ -4,6 +4,7 @@ import { apiClient } from '../../api/client';
 import type { Booking } from '../../types';
 import { ChatBox } from '../../components/chat/ChatBox';
 import { useAuth } from '../../hooks/useAuth';
+import { getTaskById, startTask, completeTask } from '../../api/tasks';
 
 export const ProviderJobDetail: React.FC = () => {
   const { bookingId } = useParams();
@@ -17,8 +18,22 @@ export const ProviderJobDetail: React.FC = () => {
 
   const fetchBooking = async () => {
     try {
-      const response = await apiClient.get(`/bookings/provider/${bookingId}`);
-      setBooking(response.data);
+      const task = await getTaskById(Number(bookingId), true);
+      const mapped: Booking = {
+        id: task.id,
+        serviceName: task.serviceName || task.category,
+        scheduledAt: task.preferredDate || task.createdAt,
+        customer: task.customer ? { name: task.customer.name, phone: task.customer.phone } : null,
+        address: task.address,
+        notes: task.description,
+        status: task.status as any,
+        amountNpr: task.finalAmountNpr,
+        baseAmount: task.finalAmountNpr,
+        totalBill: task.finalAmountNpr,
+        platformFee: task.platformFee,
+        providerEarnings: task.finalAmountNpr ? task.finalAmountNpr * 0.90 : 0
+      } as any;
+      setBooking(mapped);
     } catch (err) {
       console.error(err);
     } finally {
@@ -32,27 +47,15 @@ export const ProviderJobDetail: React.FC = () => {
     return () => clearInterval(interval);
   }, [bookingId]);
 
-  const handleAction = async (action: 'accept' | 'reject') => {
-    if (!booking) return;
-    try {
-      await apiClient.put(`/bookings/${booking.id}/${action}`);
-      fetchBooking();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   const handleStartJob = async () => {
     if (!booking) return;
     try {
-      await apiClient.put(`/bookings/${booking.id}/start?otp=${inputOtp}`);
-      setEnteringOtp(false);
-      setInputOtp('');
-      fetchBooking();
+      await startTask(booking.id);
+      await fetchBooking();
     } catch (err: any) {
       setAlertConfig({
         title: "Start Failed",
-        message: err.response?.data?.message || 'Failed to start job. Please check the OTP.',
+        message: err.response?.data?.message || 'Failed to start job.',
         type: "error"
       });
     }
@@ -61,7 +64,7 @@ export const ProviderJobDetail: React.FC = () => {
   const handleCompleteJob = async () => {
     if (!booking) return;
     try {
-      await apiClient.post(`/bookings/${booking.id}/complete`);
+      await completeTask(booking.id);
       await fetchBooking();
       await fetchUser(); // Refresh user provider earnings immediately
     } catch (err: any) {
@@ -161,61 +164,13 @@ export const ProviderJobDetail: React.FC = () => {
 
             {/* Actions Block */}
             <div className="border-t border-gray-100 pt-6 space-y-3">
-              {bookingStatus === 'ASSIGNED' && (
-                <div className="flex gap-3">
-                  <button 
-                    onClick={() => handleAction('accept')}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl transition"
-                  >
-                    Accept Job
-                  </button>
-                  <button 
-                    onClick={() => handleAction('reject')}
-                    className="flex-1 bg-red-50 hover:bg-red-100 text-red-600 font-bold py-2.5 rounded-xl transition border border-red-200"
-                  >
-                    Reject
-                  </button>
-                </div>
-              )}
-
               {bookingStatus === 'ACCEPTED' && (
-                <div>
-                  {enteringOtp ? (
-                    <div className="space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Enter OTP from Customer</label>
-                      <div className="flex gap-2">
-                        <input 
-                          type="text" 
-                          maxLength={4}
-                          placeholder="1234"
-                          value={inputOtp}
-                          onChange={e => setInputOtp(e.target.value.replace(/\D/g, ''))}
-                          className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-center tracking-widest text-lg font-bold"
-                        />
-                        <button 
-                          onClick={handleStartJob}
-                          disabled={inputOtp.length !== 4}
-                          className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 rounded-lg transition disabled:opacity-50"
-                        >
-                          Start
-                        </button>
-                        <button 
-                          onClick={() => { setEnteringOtp(false); setInputOtp(''); }}
-                          className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold px-4 rounded-lg transition"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <button 
-                      onClick={() => setEnteringOtp(true)}
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition"
-                    >
-                      Start Job (Enter OTP)
-                    </button>
-                  )}
-                </div>
+                <button 
+                  onClick={handleStartJob}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition"
+                >
+                  Start Job
+                </button>
               )}
 
               {bookingStatus === 'STARTED' && (
@@ -245,7 +200,7 @@ export const ProviderJobDetail: React.FC = () => {
                 <p className="text-blue-100 text-sm">Ask clarifying questions here</p>
               </div>
               <div className="flex-1 overflow-hidden">
-                <ChatBox bookingId={Number(bookingId)} />
+                <ChatBox taskRequestId={Number(bookingId)} />
               </div>
             </div>
           </div>

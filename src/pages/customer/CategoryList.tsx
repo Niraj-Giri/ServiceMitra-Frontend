@@ -68,7 +68,7 @@ export const CategoryList: React.FC = () => {
           <div>
             <p className="text-sm font-bold uppercase tracking-[0.18em] text-blue-600">Services</p>
             <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">Find the right professional</h1>
-            <p className="mt-3 max-w-2xl text-slate-600">Browse available categories, compare starting prices, and choose the service you need.</p>
+            <p className="mt-3 max-w-2xl text-slate-600">Browse available service categories and post your task — providers will compete to give you the best price.</p>
           </div>
           <div className="flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700">
             <Search className="h-4 w-4" />
@@ -165,9 +165,9 @@ export const CategoryList: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Price */}
-                  <div className="mt-2.5 text-orange-600 font-extrabold text-base">
-                    Rs. {service.basePrice.toFixed(2)} / {service.priceType === 'HOURLY' ? 'Hr' : 'Unit'}
+                  {/* Post Task CTA */}
+                  <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
+                    Get Free Quotes →
                   </div>
 
                   {/* Description */}

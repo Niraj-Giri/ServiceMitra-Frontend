@@ -6,6 +6,7 @@ export interface SignupRequest {
   email: string;
   role: 'CUSTOMER' | 'PROVIDER';
   serviceCategory?: string;
+  referredBy?: string;
 }
 
 export const sendOtp = async (phone: string) => {

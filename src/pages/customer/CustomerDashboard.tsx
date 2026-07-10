@@ -1,20 +1,27 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { apiClient } from '../../api/client';
-import type { Booking } from '../../types';
+import { getMyTasks } from '../../api/tasks';
+import type { Booking, TaskRequest, TaskStatus } from '../../types';
 import { 
   Plus, Calendar, Clock, MapPin, Star, 
-  MessageSquare, Phone, RefreshCw, XCircle, CalendarClock, AlertTriangle
+  MessageSquare, Phone, RefreshCw, XCircle, CalendarClock, AlertTriangle,
+  Gift, Copy, Check, Zap, ChevronRight
 } from 'lucide-react';
 import { ChatBox } from '../../components/chat/ChatBox';
 
 export const CustomerDashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = (searchParams.get('tab')?.toUpperCase() as any) || 'UPCOMING';
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [tasks, setTasks] = useState<TaskRequest[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'UPCOMING' | 'COMPLETED' | 'CANCELLED' | 'DISPUTES'>('UPCOMING');
+  const [activeTab, setActiveTab] = useState<'TASKS' | 'COMPLETED' | 'CANCELLED' | 'DISPUTES' | 'LOYALTY'>(
+    ['TASKS', 'COMPLETED', 'CANCELLED', 'DISPUTES', 'LOYALTY'].includes(initialTab) ? initialTab as any : 'TASKS'
+  );
   const [chatBookingId, setChatBookingId] = useState<number | null>(null);
   const [rescheduleBooking, setRescheduleBooking] = useState<Booking | null>(null);
   const [rescheduleDateTime, setRescheduleDateTime] = useState('');
@@ -27,6 +34,51 @@ export const CustomerDashboard: React.FC = () => {
   const [complaintMessages, setComplaintMessages] = useState<any[]>([]);
   const [replyMessage, setReplyMessage] = useState('');
   const [sendingReply, setSendingReply] = useState(false);
+
+  // Loyalty & Reward Points States
+  const [loyaltyData, setLoyaltyData] = useState<{ pointsBalance: number; history: any[] }>({ pointsBalance: 0, history: [] });
+  const [referrerPhone, setReferrerPhone] = useState('');
+  const [referralSuccess, setReferralSuccess] = useState<string | null>(null);
+  const [referralError, setReferralError] = useState<string | null>(null);
+  const [applyingReferral, setApplyingReferral] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const fetchLoyaltyData = async () => {
+    try {
+      const response = await apiClient.get('/loyalty/points');
+      setLoyaltyData(response.data);
+    } catch (err) {
+      console.error('Failed to fetch loyalty data', err);
+    }
+  };
+
+  const handleApplyReferral = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!referrerPhone.trim()) return;
+    setApplyingReferral(true);
+    setReferralError(null);
+    setReferralSuccess(null);
+    try {
+      await apiClient.post('/loyalty/referral', {
+        referrerPhone: referrerPhone.trim()
+      });
+      setReferralSuccess('Referral bonus claimed successfully!');
+      setReferrerPhone('');
+      fetchLoyaltyData(); // reload points balance
+    } catch (err: any) {
+      const serverMessage = err.response?.data?.message || err.response?.data?.error?.message || err.message;
+      setReferralError(serverMessage || 'Failed to claim referral bonus. Make sure the phone number is correct.');
+    } finally {
+      setApplyingReferral(false);
+    }
+  };
+
+  const handleCopyCode = () => {
+    if (!user?.phone) return;
+    navigator.clipboard.writeText(user.phone);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const fetchComplaints = async () => {
     try {
@@ -94,8 +146,28 @@ export const CustomerDashboard: React.FC = () => {
 
   const fetchBookings = async () => {
     try {
-      const response = await apiClient.get('/bookings/user');
-      setBookings(response.data);
+      const data = await getMyTasks();
+      const mapped = data.map(t => {
+        const acceptedQuote = t.quotes?.find(q => q.id === t.acceptedQuoteId);
+        return {
+          id: t.id,
+          serviceName: t.serviceName || t.category,
+          scheduledAt: t.preferredDate || t.createdAt,
+          status: t.status,
+          totalBill: t.finalAmountNpr,
+          baseAmount: t.finalAmountNpr,
+          amountNpr: t.finalAmountNpr,
+          platformFee: t.platformFee,
+          provider: acceptedQuote ? {
+            name: acceptedQuote.providerBusinessName || acceptedQuote.providerName,
+            phone: acceptedQuote.providerName,
+            ratingCache: acceptedQuote.providerRating
+          } : null,
+          address: t.address,
+          notes: t.description
+        };
+      }) as any;
+      setBookings(mapped);
     } catch (err) {
       console.error(err);
     } finally {
@@ -103,10 +175,30 @@ export const CustomerDashboard: React.FC = () => {
     }
   };
 
+  const fetchTasks = async () => {
+    try {
+      const data = await getMyTasks();
+      setTasks(data);
+    } catch (err) {
+      console.error('Failed to fetch tasks', err);
+    }
+  };
+
   useEffect(() => {
     fetchBookings();
+    fetchTasks();
     fetchComplaints();
   }, []);
+
+  useEffect(() => {
+    setSearchParams({ tab: activeTab.toLowerCase() });
+    if (activeTab === 'LOYALTY') {
+      fetchLoyaltyData();
+    }
+    if (activeTab === 'TASKS') {
+      fetchTasks();
+    }
+  }, [activeTab]);
 
   const handleCancelBooking = async (id: number) => {
     if (window.confirm("Are you sure you want to cancel this booking?")) {
@@ -162,9 +254,9 @@ export const CustomerDashboard: React.FC = () => {
     }
   };
 
-  const upcomingBookings = bookings.filter(b => !['COMPLETED', 'CANCELLED_BY_CUSTOMER', 'CANCELLED_BY_PROVIDER', 'CANCELLED_BY_ADMIN'].includes(b.status));
+  const upcomingBookings = bookings.filter(b => !['COMPLETED', 'CANCELLED', 'CANCELLED_BY_CUSTOMER', 'CANCELLED_BY_PROVIDER', 'CANCELLED_BY_ADMIN'].includes(b.status));
   const completedBookings = bookings.filter(b => b.status === 'COMPLETED');
-  const cancelledBookings = bookings.filter(b => ['CANCELLED_BY_CUSTOMER', 'CANCELLED_BY_PROVIDER', 'CANCELLED_BY_ADMIN'].includes(b.status));
+  const cancelledBookings = bookings.filter(b => ['CANCELLED', 'CANCELLED_BY_CUSTOMER', 'CANCELLED_BY_PROVIDER', 'CANCELLED_BY_ADMIN'].includes(b.status));
 
   const getFilteredBookings = () => {
     switch (activeTab) {
@@ -193,7 +285,7 @@ export const CustomerDashboard: React.FC = () => {
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-blue-600/20 transition hover:-translate-y-0.5 hover:bg-blue-700"
           >
             <Plus className="h-4 w-4" />
-            Book a Service
+            Post a Task
           </button>
         </div>
       </div>
@@ -205,19 +297,19 @@ export const CustomerDashboard: React.FC = () => {
               <CalendarClock className="h-6 w-6" />
             </div>
             <div>
-              <div className="text-sm font-semibold text-slate-500">Total Bookings</div>
-              <div className="text-3xl font-extrabold text-slate-950">{bookings.length}</div>
+              <div className="text-sm font-semibold text-slate-500">My Tasks</div>
+              <div className="text-3xl font-extrabold text-slate-950">{tasks.length}</div>
             </div>
           </div>
         </div>
         <div className="service-card rounded-2xl p-6">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
-              <CalendarClock className="h-6 w-6" />
+              <Zap className="h-6 w-6" />
             </div>
             <div>
-              <div className="text-sm font-semibold text-slate-500">Active Requests</div>
-              <div className="text-3xl font-extrabold text-slate-950">{bookings.filter(booking => !['COMPLETED', 'CANCELLED'].includes(booking.status)).length}</div>
+              <div className="text-sm font-semibold text-slate-500">Active Tasks</div>
+              <div className="text-3xl font-extrabold text-slate-950">{tasks.filter(t => !['COMPLETED','CANCELLED','EXPIRED'].includes(t.status)).length}</div>
             </div>
           </div>
         </div>
@@ -231,7 +323,7 @@ export const CustomerDashboard: React.FC = () => {
           </div>
           
           {/* Pill Tabs */}
-          <div className="inline-flex gap-1 p-1 bg-slate-100/80 rounded-full w-fit">
+          <div className="inline-flex gap-1 p-1 bg-slate-100/80 rounded-2xl md:rounded-full w-full md:w-fit overflow-x-auto whitespace-nowrap scrollbar-none">
             <button
               onClick={() => setActiveTab('UPCOMING')}
               className={`px-5 py-1.5 rounded-full text-xs font-bold transition duration-200 ${
@@ -263,6 +355,16 @@ export const CustomerDashboard: React.FC = () => {
               Cancelled ({cancelledBookings.length})
             </button>
             <button
+              onClick={() => setActiveTab('TASKS')}
+              className={`px-5 py-1.5 rounded-full text-xs font-bold transition duration-200 ${
+                activeTab === 'TASKS'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              My Tasks ({tasks.length})
+            </button>
+            <button
               onClick={() => setActiveTab('DISPUTES')}
               className={`px-5 py-1.5 rounded-full text-xs font-bold transition duration-200 ${
                 activeTab === 'DISPUTES'
@@ -272,11 +374,199 @@ export const CustomerDashboard: React.FC = () => {
             >
               Disputes ({complaints.length})
             </button>
+            <button
+              onClick={() => setActiveTab('LOYALTY')}
+              className={`px-5 py-1.5 rounded-full text-xs font-bold transition duration-200 ${
+                activeTab === 'LOYALTY'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              Referrals & Rewards
+            </button>
           </div>
         </div>
         
         {loading ? (
           <div className="text-center py-10 text-slate-500">Loading details...</div>
+        ) : activeTab === 'TASKS' ? (
+          <div className="space-y-3 animate-fadeIn">
+            {tasks.length === 0 ? (
+              <div className="py-16 text-center space-y-4">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-50 text-blue-400 mx-auto">
+                  <Zap className="h-8 w-8" />
+                </div>
+                <div>
+                  <p className="font-bold text-slate-700">No tasks yet</p>
+                  <p className="text-sm text-slate-400 mt-1">Post a task and get quotes from nearby providers!</p>
+                </div>
+                <button
+                  onClick={() => navigate('/services')}
+                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-blue-700 transition shadow-md shadow-blue-600/25"
+                >
+                  <Plus className="h-4 w-4" /> Post Your First Task
+                </button>
+              </div>
+            ) : (
+              tasks.map(task => {
+                const statusColors: Record<string, string> = {
+                  OPEN: 'bg-emerald-100 text-emerald-700',
+                  QUOTING: 'bg-blue-100 text-blue-700',
+                  ACCEPTED: 'bg-violet-100 text-violet-700',
+                  STARTED: 'bg-orange-100 text-orange-700',
+                  COMPLETED: 'bg-slate-100 text-slate-600',
+                  CANCELLED: 'bg-red-100 text-red-600',
+                  EXPIRED: 'bg-slate-100 text-slate-400',
+                };
+                const statusLabel: Record<string, string> = {
+                  OPEN: 'Open — Awaiting Quotes',
+                  QUOTING: `${task.quotes?.length ?? 0} Quote(s) Received`,
+                  ACCEPTED: 'Provider Accepted',
+                  STARTED: 'In Progress',
+                  COMPLETED: 'Completed',
+                  CANCELLED: 'Cancelled',
+                  EXPIRED: 'Expired',
+                };
+                const activeQuoteCount = task.quotes?.filter(q => q.status === 'PENDING' || q.status === 'COUNTER_OFFERED').length ?? 0;
+                return (
+                  <div
+                    key={task.id}
+                    onClick={() => navigate(`/task/${task.id}`)}
+                    className="flex items-center gap-4 rounded-2xl border border-slate-100 bg-white p-4 cursor-pointer hover:border-blue-200 hover:shadow-md transition-all duration-200 group"
+                  >
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 font-black text-lg">
+                      {(task.serviceName || task.category || 'S').charAt(0)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <span className="font-extrabold text-slate-900 text-sm truncate">{task.title}</span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${statusColors[task.status] ?? 'bg-slate-100 text-slate-500'}`}>
+                          {statusLabel[task.status] ?? task.status}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                        <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{task.address.substring(0, 35)}{task.address.length > 35 ? '…' : ''}</span>
+                        <span>Budget: Rs. {task.budgetMinNpr.toLocaleString()} – {task.budgetMaxNpr.toLocaleString()}</span>
+                        {activeQuoteCount > 0 && (
+                          <span className="font-bold text-blue-600">{activeQuoteCount} active quote{activeQuoteCount > 1 ? 's' : ''}</span>
+                        )}
+                      </div>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-blue-400 shrink-0 transition" />
+                  </div>
+                );
+              })
+            )}
+          </div>
+        ) : activeTab === 'LOYALTY' ? (
+          <div className="space-y-8 animate-fadeIn">
+            {/* Top Row: Balance and Share cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Balance Box */}
+              <div className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white rounded-3xl p-6 shadow-xl flex flex-col justify-between relative overflow-hidden">
+                <div className="absolute right-0 bottom-0 translate-x-4 translate-y-4 opacity-10">
+                  <Gift className="h-48 w-48" />
+                </div>
+                <div>
+                  <span className="text-xs uppercase font-extrabold tracking-widest text-blue-100 block mb-1">Total Reward Points</span>
+                  <span className="text-5xl font-black font-mono">{loyaltyData.pointsBalance}</span>
+                  <p className="text-[11px] text-blue-100/80 mt-2 font-medium">
+                    Equivalent to <span className="font-bold">Rs. {loyaltyData.pointsBalance}</span> checkout discount!
+                  </p>
+                </div>
+                <div className="mt-8 pt-4 border-t border-white/10 flex justify-between items-center text-xs">
+                  <span className="text-blue-100 font-medium">Points validity: Lifetime</span>
+                  <span className="bg-white/20 px-3 py-1 rounded-full font-extrabold uppercase text-[9px] tracking-wider">Level 1 Member</span>
+                </div>
+              </div>
+
+              {/* Share and Claim Referrals */}
+              <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
+                <div>
+                  <h3 className="font-extrabold text-slate-900 text-base mb-1">Referral Program</h3>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    Share your phone number with your friends. When they register using it, you both get <span className="font-bold text-blue-600">30 reward points</span>!
+                  </p>
+                  
+                  {/* Share code */}
+                  <div className="mt-4 flex items-center justify-between bg-slate-50 border border-slate-100 rounded-2xl p-3">
+                    <div className="space-y-0.5">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Your Referral Code</span>
+                      <span className="font-bold text-slate-800 text-sm font-mono">{user?.phone}</span>
+                    </div>
+                    <button
+                      onClick={handleCopyCode}
+                      className="p-2.5 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl transition text-slate-500 hover:text-blue-600 shadow-sm"
+                      title="Copy code"
+                    >
+                      {copied ? <Check className="h-4 w-4 text-emerald-600 animate-scale-in" /> : <Copy className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Claim referral input */}
+                <div className="mt-6 pt-5 border-t border-slate-100">
+                  <form onSubmit={handleApplyReferral} className="space-y-3">
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Enter Referrer's Phone Number</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="tel"
+                          value={referrerPhone}
+                          onChange={(e) => setReferrerPhone(e.target.value)}
+                          placeholder="e.g. 98XXXXXXXX"
+                          className="flex-1 px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs bg-white font-mono"
+                        />
+                        <button
+                          type="submit"
+                          disabled={applyingReferral || !referrerPhone.trim()}
+                          className="px-4 py-2 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 text-white rounded-xl text-xs font-bold transition shadow-sm"
+                        >
+                          {applyingReferral ? 'Claiming...' : 'Claim Bonus'}
+                        </button>
+                      </div>
+                    </div>
+                    {referralSuccess && <p className="text-[11px] font-bold text-emerald-600 animate-fadeIn">{referralSuccess}</p>}
+                    {referralError && <p className="text-[11px] font-bold text-rose-600 animate-fadeIn">{referralError}</p>}
+                  </form>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Section: Points History ledger */}
+            <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm">
+              <h3 className="font-extrabold text-slate-900 text-base mb-4">Points Transaction History</h3>
+              
+              {!loyaltyData.history || loyaltyData.history.length === 0 ? (
+                <div className="text-center py-10 text-slate-400 text-xs italic">
+                  No points transactions recorded yet.
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {loyaltyData.history.map((item: any) => {
+                    const isCredit = item.points > 0;
+                    return (
+                      <div key={item.id} className="py-3.5 flex justify-between items-center gap-4 text-xs">
+                        <div className="space-y-1">
+                          <span className="font-extrabold text-slate-800 block text-sm">
+                            {item.description}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-medium font-mono">
+                            {new Date(item.createdAt).toLocaleString()} | Action: {item.actionType}
+                          </span>
+                        </div>
+                        <span className={`font-extrabold text-sm font-mono shrink-0 ${
+                          isCredit ? 'text-emerald-600' : 'text-rose-600'
+                        }`}>
+                          {isCredit ? '+' : ''}{item.points} pts
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
         ) : activeTab === 'DISPUTES' ? (
           complaints.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-300 bg-white/70 py-12 text-center">

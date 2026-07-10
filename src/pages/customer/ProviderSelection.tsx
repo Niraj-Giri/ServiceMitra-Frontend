@@ -51,6 +51,24 @@ export const ProviderSelection: React.FC = () => {
   const [bookingInProgress, setBookingInProgress] = useState(false);
   const [alertConfig, setAlertConfig] = useState<{ title: string; message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
+  // Reward points loyalty states
+  const [rewardPoints, setRewardPoints] = useState<number>(0);
+  const [pointsToRedeem, setPointsToRedeem] = useState<number>(0);
+  const [redeemChecked, setRedeemChecked] = useState<boolean>(false);
+
+  // Fetch customer's reward points balance
+  useEffect(() => {
+    const fetchPoints = async () => {
+      try {
+        const res = await apiClient.get('/loyalty/points');
+        setRewardPoints(res.data.pointsBalance || 0);
+      } catch (err) {
+        console.error('Failed to fetch loyalty points', err);
+      }
+    };
+    fetchPoints();
+  }, []);
+
   const isProviderInCooldown = (lastCompletedAtStr?: string) => {
     if (!lastCompletedAtStr || !bookingState?.scheduledAt) return false;
     try {
@@ -195,7 +213,8 @@ export const ProviderSelection: React.FC = () => {
         addressId: 1, // Default placeholder
         address: bookingState.address,
         notes: bookingState.notes,
-        providerId: providerId
+        providerId: providerId,
+        pointsToRedeem: redeemChecked ? pointsToRedeem : 0
       });
 
       // 3. Navigate directly to tracking screen
@@ -294,6 +313,40 @@ export const ProviderSelection: React.FC = () => {
           />
         </div>
       </div>
+
+      {/* Reward Points redemption panel */}
+      {rewardPoints > 0 && (
+        <div className="bg-gradient-to-r from-blue-50/50 to-indigo-50/20 border border-blue-100 rounded-2xl p-5 mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="space-y-1">
+            <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+              <span className="text-blue-500 text-lg">🎁</span> Reward Points Loyalty Program
+            </h3>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              You have <span className="font-bold text-blue-600 font-mono">{rewardPoints}</span> points available. 
+              You can redeem them for a discount of Rs. {Math.min(rewardPoints, service?.basePrice || 0)} on this booking.
+            </p>
+          </div>
+          <div className="flex items-center gap-3 bg-white p-3 border border-slate-100 rounded-xl shadow-sm self-stretch md:self-auto justify-between">
+            <label className="flex items-center gap-2.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={redeemChecked}
+                onChange={(e) => {
+                  setRedeemChecked(e.target.checked);
+                  setPointsToRedeem(e.target.checked ? Math.min(rewardPoints, service?.basePrice || 0) : 0);
+                }}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <span className="text-xs font-bold text-slate-700">Apply points discount</span>
+            </label>
+            {redeemChecked && (
+              <span className="bg-emerald-50 text-emerald-700 text-[10px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider font-mono">
+                - Rs. {pointsToRedeem}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Providers List (Left Side) */}
@@ -664,7 +717,14 @@ export const ProviderSelection: React.FC = () => {
             <div className="p-6 md:p-8 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4">
               <div className="text-center sm:text-left">
                 <span className="text-xs text-slate-400 block font-bold uppercase tracking-wider">Service Charge</span>
-                <span className="text-2xl font-extrabold text-blue-600">Rs. {service?.basePrice}</span>
+                {redeemChecked && pointsToRedeem > 0 ? (
+                  <div>
+                    <span className="text-sm line-through text-slate-400 font-bold mr-2">Rs. {service?.basePrice}</span>
+                    <span className="text-2xl font-extrabold text-emerald-600">Rs. {service ? service.basePrice - pointsToRedeem : 0}</span>
+                  </div>
+                ) : (
+                  <span className="text-2xl font-extrabold text-blue-600">Rs. {service?.basePrice}</span>
+                )}
               </div>
               <div className="flex gap-3 w-full sm:w-auto">
                 <button

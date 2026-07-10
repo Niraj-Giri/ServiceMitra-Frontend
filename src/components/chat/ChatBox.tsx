@@ -10,7 +10,7 @@ interface ChatMessage {
   createdAt: string;
 }
 
-export const ChatBox: React.FC<{ bookingId: number }> = ({ bookingId }) => {
+export const ChatBox: React.FC<{ bookingId?: number; taskRequestId?: number }> = ({ bookingId, taskRequestId }) => {
   const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -19,9 +19,10 @@ export const ChatBox: React.FC<{ bookingId: number }> = ({ bookingId }) => {
 
   const fetchMessages = async () => {
     try {
-      const response = await apiClient.get(
-        `/chat/bookings/${bookingId}/messages`
-      );
+      const url = bookingId 
+        ? `/chat/bookings/${bookingId}/messages`
+        : `/chat/tasks/${taskRequestId}/messages`;
+      const response = await apiClient.get(url);
       setMessages(response.data);
     } catch (err) {
       console.error('Failed to fetch messages', err);
@@ -32,7 +33,7 @@ export const ChatBox: React.FC<{ bookingId: number }> = ({ bookingId }) => {
     fetchMessages();
     const interval = setInterval(fetchMessages, 3000);
     return () => clearInterval(interval);
-  }, [bookingId]);
+  }, [bookingId, taskRequestId]);
 
   useEffect(() => {
     // Only scroll to the bottom when the list of message IDs actually changes.
@@ -54,7 +55,10 @@ export const ChatBox: React.FC<{ bookingId: number }> = ({ bookingId }) => {
     if (!newMessage.trim() || !user) return;
 
     try {
-      await apiClient.post(`/chat/bookings/${bookingId}/messages`, {
+      const url = bookingId 
+        ? `/chat/bookings/${bookingId}/messages`
+        : `/chat/tasks/${taskRequestId}/messages`;
+      await apiClient.post(url, {
         senderId: user.id,
         senderRole: user.role,
         content: newMessage,

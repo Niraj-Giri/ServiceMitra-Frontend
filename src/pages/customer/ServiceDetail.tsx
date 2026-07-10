@@ -50,12 +50,9 @@ export const ServiceDetail: React.FC = () => {
               <div className="text-blue-100 text-sm font-bold uppercase tracking-[0.18em] mb-3">{service.category}</div>
               <h1 className="max-w-3xl text-4xl font-extrabold tracking-tight sm:text-5xl">{service.name}</h1>
               <p className="mt-5 max-w-2xl text-lg leading-8 text-blue-50/82">{service.description}</p>
-              <div className="mt-8 inline-flex items-center gap-3 rounded-2xl bg-white px-5 py-4 text-slate-950 shadow-xl">
-                <span className="text-sm font-semibold text-slate-500">Starting price</span>
-                <span className="text-2xl font-extrabold">
-                  {service.priceType === 'STARTING_AT' ? 'From ' : ''}
-                  Rs. {service.basePrice}{service.priceType === 'HOURLY' ? '/hr' : ''}
-                </span>
+              <div className="mt-8 inline-flex items-center gap-2 rounded-2xl bg-white/10 border border-white/20 px-5 py-3 text-white/80 text-sm font-semibold backdrop-blur-sm">
+                <span>💡</span>
+                <span>No fixed prices — get competitive quotes from local pros</span>
               </div>
             </div>
           </div>
@@ -80,13 +77,19 @@ export const ServiceDetail: React.FC = () => {
 
         <aside className="space-y-5">
           <div className="glass-panel rounded-2xl p-6">
-            <h2 className="text-xl font-extrabold text-slate-950">Ready to book?</h2>
-            <p className="mt-2 text-sm text-slate-500">Next, choose from available professionals based on rating, distance, jobs completed, and experience.</p>
+            <h2 className="text-xl font-extrabold text-slate-950">Post a Task</h2>
+            <p className="mt-2 text-sm text-slate-500">Describe your job, set your budget, and get quotes from verified local professionals competing for your task.</p>
+            <div className="mt-4 space-y-2 text-sm text-slate-600">
+              <div className="flex items-center gap-2"><span className="text-green-500 font-bold">✓</span> You set your budget</div>
+              <div className="flex items-center gap-2"><span className="text-green-500 font-bold">✓</span> Providers quote their best price</div>
+              <div className="flex items-center gap-2"><span className="text-green-500 font-bold">✓</span> Counter-offer if needed</div>
+              <div className="flex items-center gap-2"><span className="text-green-500 font-bold">✓</span> Only pay when done</div>
+            </div>
             <Button 
               className="mt-6 w-full gap-2 py-4 text-lg"
-              onClick={() => navigate(`/services/${service.id}/providers`)}
+              onClick={() => navigate(`/task/new?serviceId=${service.id}`)}
             >
-              Choose Professional
+              Post a Task
               <ArrowRight className="h-5 w-5" />
             </Button>
           </div>
