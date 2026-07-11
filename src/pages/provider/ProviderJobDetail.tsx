@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { apiClient } from '../../api/client';
 import type { Booking } from '../../types';
 import { ChatBox } from '../../components/chat/ChatBox';
 import { useAuth } from '../../hooks/useAuth';
@@ -12,8 +11,6 @@ export const ProviderJobDetail: React.FC = () => {
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
   const { fetchUser } = useAuth();
-  const [inputOtp, setInputOtp] = useState('');
-  const [enteringOtp, setEnteringOtp] = useState(false);
   const [alertConfig, setAlertConfig] = useState<{ title: string; message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   const fetchBooking = async () => {

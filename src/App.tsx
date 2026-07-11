@@ -17,10 +17,7 @@ import { UnauthorizedPage } from './pages/common/UnauthorizedPage';
 import { ProfilePage } from './pages/common/ProfilePage';
 import { CategoryList } from './pages/customer/CategoryList';
 import { ServiceDetail } from './pages/customer/ServiceDetail';
-import { BookingCheckout } from './pages/customer/BookingCheckout';
 import { BookingTracking } from './pages/customer/BookingTracking';
-import { ProviderSelection } from './pages/customer/ProviderSelection';
-
 import { PostTask } from './pages/customer/PostTask';
 import { TaskDetail } from './pages/customer/TaskDetail';
 

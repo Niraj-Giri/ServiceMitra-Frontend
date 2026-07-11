@@ -5,9 +5,9 @@ import {
 } from '../../api/tasks';
 import type { TaskRequest, Quote, TaskStatus, QuoteStatus } from '../../types';
 import {
-  ArrowLeft, MapPin, Calendar, Clock, CheckCircle, XCircle, AlertCircle,
+  ArrowLeft, MapPin, Calendar, Clock, CheckCircle, AlertCircle,
   Loader2, Star, Briefcase, MessageSquare, ChevronDown, ChevronUp,
-  DollarSign, Send, RefreshCw, Shield, Zap
+  DollarSign, Send, RefreshCw, Zap
 } from 'lucide-react';
 import { ChatBox } from '../../components/chat/ChatBox';
 

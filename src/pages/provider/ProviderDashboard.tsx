@@ -3,7 +3,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../../api/client';
 import type { Booking, TaskRequest, Quote } from '../../types';
-import { getAvailableTasks, submitQuote, getMyQuotes, respondToCounter, withdrawQuote, getProviderTasks } from '../../api/tasks';
+import { getAvailableTasks, submitQuote, getMyQuotes, respondToCounter, withdrawQuote, getProviderTasks, startTask, completeTask } from '../../api/tasks';
 import { 
   TrendingUp, Award, Briefcase, 
   CheckCircle2, XCircle, Clock, Filter, AlertTriangle
@@ -248,8 +248,6 @@ export const ProviderDashboard: React.FC = () => {
     }
   };
 
-  const [activeOtpBookingId, setActiveOtpBookingId] = useState<number | null>(null);
-  const [inputOtp, setInputOtp] = useState('');
 
   const handleAction = async (id: number, action: 'accept' | 'reject') => {
     try {

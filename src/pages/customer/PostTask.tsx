@@ -4,7 +4,7 @@ import { apiClient } from '../../api/client';
 import { postTask } from '../../api/tasks';
 import type { Service } from '../../types';
 import {
-  ArrowLeft, ArrowRight, MapPin, Calendar, DollarSign,
+  ArrowLeft, ArrowRight, MapPin, DollarSign,
   FileText, CheckCircle, Loader2, AlertCircle, Sparkles
 } from 'lucide-react';
 

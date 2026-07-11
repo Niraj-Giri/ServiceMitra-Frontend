@@ -3,7 +3,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { apiClient } from '../../api/client';
 import { getMyTasks } from '../../api/tasks';
-import type { Booking, TaskRequest, TaskStatus } from '../../types';
+import type { Booking, TaskRequest } from '../../types';
 import { 
   Plus, Calendar, Clock, MapPin, Star, 
   MessageSquare, Phone, RefreshCw, XCircle, CalendarClock, AlertTriangle,
@@ -19,8 +19,8 @@ export const CustomerDashboard: React.FC = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [tasks, setTasks] = useState<TaskRequest[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'TASKS' | 'COMPLETED' | 'CANCELLED' | 'DISPUTES' | 'LOYALTY'>(
-    ['TASKS', 'COMPLETED', 'CANCELLED', 'DISPUTES', 'LOYALTY'].includes(initialTab) ? initialTab as any : 'TASKS'
+  const [activeTab, setActiveTab] = useState<'UPCOMING' | 'TASKS' | 'COMPLETED' | 'CANCELLED' | 'DISPUTES' | 'LOYALTY'>(
+    ['UPCOMING', 'TASKS', 'COMPLETED', 'CANCELLED', 'DISPUTES', 'LOYALTY'].includes(initialTab) ? initialTab as any : 'UPCOMING'
   );
   const [chatBookingId, setChatBookingId] = useState<number | null>(null);
   const [rescheduleBooking, setRescheduleBooking] = useState<Booking | null>(null);
