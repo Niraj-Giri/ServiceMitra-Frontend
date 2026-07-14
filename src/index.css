@@ -18,6 +18,7 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
 body {
@@ -28,6 +29,7 @@ body {
     linear-gradient(180deg, #f8fbff 0%, #eef5ff 42%, #f8fafc 100%);
   color: var(--ink);
   min-width: 320px;
+  overflow-x: hidden;
 }
 
 button,

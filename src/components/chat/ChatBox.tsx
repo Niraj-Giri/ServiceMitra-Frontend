@@ -97,7 +97,7 @@ export const ChatBox: React.FC<{ bookingId?: number; taskRequestId?: number }> =
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-100">
+    <div className="flex flex-col h-full min-h-[320px] bg-gray-100">
       {/* Header */}
       <div className="bg-white px-4 py-3 border-b shadow-sm">
         <h2 className="text-sm font-semibold text-gray-700">

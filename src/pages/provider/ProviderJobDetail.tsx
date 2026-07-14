@@ -118,11 +118,11 @@ export const ProviderJobDetail: React.FC = () => {
   const showChat = ['ACCEPTED', 'STARTED'].includes(bookingStatus);
 
   return (
-    <div className="max-w-6xl mx-auto py-8">
-      <div className="mb-6 flex items-center justify-between">
+    <div className="max-w-6xl mx-auto py-6 px-4 sm:py-8">
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <button 
           onClick={() => navigate('/provider/dashboard')}
-          className="text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1.5"
+          className="text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1.5 text-sm"
         >
           ← Back to Dashboard
         </button>
@@ -136,10 +136,10 @@ export const ProviderJobDetail: React.FC = () => {
         </span>
       </div>
 
-      <div className={showChat ? "grid grid-cols-1 lg:grid-cols-3 gap-8" : "max-w-2xl mx-auto"}>
+      <div className={showChat ? "grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8" : "max-w-2xl mx-auto"}>
         {/* Left Side: Job Details */}
         <div className={showChat ? "lg:col-span-1 space-y-6" : "w-full space-y-6"}>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-6">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 space-y-6">
             <h2 className="text-xl font-bold text-gray-900 border-b pb-3">
               {isPastTask ? 'Completed Job Summary' : 'Job Details'}
             </h2>
@@ -271,7 +271,7 @@ export const ProviderJobDetail: React.FC = () => {
         {/* Right Side: Chat */}
         {(bookingStatus === 'ACCEPTED' || bookingStatus === 'STARTED') && (
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden h-[600px] flex flex-col">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden h-[380px] sm:h-[500px] lg:h-[600px] flex flex-col">
               <div className="bg-blue-600 p-4 text-white">
                 <h3 className="font-bold">Chat with Customer</h3>
                 <p className="text-blue-100 text-sm">Ask clarifying questions here</p>

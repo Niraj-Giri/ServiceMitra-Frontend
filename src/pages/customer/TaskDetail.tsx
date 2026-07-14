@@ -429,7 +429,7 @@ const QuoteCard: React.FC<QuoteCardProps> = ({
           </div>
 
           {(taskStatus === 'ACCEPTED' || taskStatus === 'STARTED') && (
-            <div className="border-t border-slate-100 pt-3 h-[350px] rounded-xl overflow-hidden">
+            <div className="border-t border-slate-100 pt-3 h-[280px] sm:h-[350px] rounded-xl overflow-hidden">
               <ChatBox taskRequestId={quote.taskRequestId} />
             </div>
           )}

@@ -247,7 +247,7 @@ export const CustomerDashboard: React.FC = () => {
       <div className="glass-panel flex flex-col gap-5 rounded-2xl p-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm font-bold uppercase tracking-[0.18em] text-blue-600">Customer dashboard</p>
-          <h1 className="mt-2 text-3xl font-extrabold text-slate-950">Welcome, {user?.name || 'Customer'}</h1>
+          <h1 className="mt-2 text-2xl sm:text-3xl font-extrabold text-slate-950">Welcome, {user?.name || 'Customer'}</h1>
           <p className="text-slate-500 mt-2">Book services, track visits, and manage your bookings in one place.</p>
         </div>
         <div className="flex flex-col gap-3 sm:items-end">
@@ -287,14 +287,14 @@ export const CustomerDashboard: React.FC = () => {
       </div>
 
       <div className="glass-panel rounded-2xl p-6">
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-5">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between border-b border-slate-100 pb-5">
           <div>
             <h2 className="text-2xl font-extrabold text-slate-950">My Bookings</h2>
             <p className="mt-1 text-sm text-slate-500">Manage and track your tasks</p>
           </div>
           
           {/* Pill Tabs */}
-          <div className="inline-flex gap-1 p-1 bg-slate-100/80 rounded-2xl md:rounded-full w-full md:w-fit overflow-x-auto whitespace-nowrap scrollbar-none">
+          <div className="flex gap-1 p-1 bg-slate-100/80 rounded-2xl md:rounded-full w-full md:w-fit overflow-x-auto whitespace-nowrap scrollbar-none shrink-0">
             <button
               onClick={() => setActiveTab('UPCOMING')}
               className={`px-5 py-1.5 rounded-full text-xs font-bold transition duration-200 ${
@@ -641,7 +641,7 @@ export const CustomerDashboard: React.FC = () => {
           onClick={() => setChatBookingId(null)}
         >
           <div 
-            className="bg-white rounded-3xl w-full max-w-lg h-[600px] overflow-hidden flex flex-col shadow-2xl relative animate-fade-in"
+            className="bg-white rounded-3xl w-full max-w-lg h-[80vh] sm:h-[600px] overflow-hidden flex flex-col shadow-2xl relative animate-fade-in"
             onClick={e => e.stopPropagation()}
           >
             <button 

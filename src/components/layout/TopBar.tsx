@@ -150,25 +150,87 @@ export const TopBar: React.FC = () => {
 
       {/* Mobile Menu Dropdown */}
       {isMobileMenuOpen && (
-        <div className="md:hidden border-t border-slate-100 bg-white px-4 py-4 space-y-3 shadow-md animate-in slide-in-from-top-4 duration-200">
+        <div className="md:hidden border-t border-slate-100 bg-white px-4 py-4 space-y-1 shadow-md">
           {(!isAuthenticated || user?.role === 'CUSTOMER') && (
             <>
               <Link 
                 to="/" 
-                className="block text-sm font-bold text-slate-700 hover:text-blue-600 py-1 transition"
+                className="block text-sm font-bold text-slate-700 hover:text-blue-600 py-2.5 px-3 rounded-xl hover:bg-blue-50 transition"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                Home
+                🏠 Home
               </Link>
               <Link 
                 to="/services" 
-                className="block text-sm font-bold text-slate-700 hover:text-blue-600 py-1 transition"
+                className="block text-sm font-bold text-slate-700 hover:text-blue-600 py-2.5 px-3 rounded-xl hover:bg-blue-50 transition"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                Services
+                🔧 Services
               </Link>
             </>
           )}
+
+          {isAuthenticated && user && (
+            <>
+              <div className="px-3 py-2 border-b border-slate-100 mb-1">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">My Account</p>
+                <p className="text-sm font-bold text-slate-800 mt-0.5">{user.name || 'User'}</p>
+                <p className="text-xs text-slate-500">{user.phone}</p>
+              </div>
+              <Link
+                to="/profile"
+                className="block text-sm font-bold text-slate-700 hover:text-blue-600 py-2.5 px-3 rounded-xl hover:bg-blue-50 transition"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                👤 My Profile
+              </Link>
+              {user.role === 'CUSTOMER' && (
+                <>
+                  <Link
+                    to="/customer/dashboard"
+                    className="block text-sm font-bold text-slate-700 hover:text-blue-600 py-2.5 px-3 rounded-xl hover:bg-blue-50 transition"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    📋 My Bookings
+                  </Link>
+                  <Link
+                    to="/customer/dashboard?tab=loyalty"
+                    className="block text-sm font-semibold text-blue-600 py-2.5 px-3 rounded-xl hover:bg-blue-50 transition"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    🎁 Referrals & Rewards
+                  </Link>
+                </>
+              )}
+              {user.role === 'PROVIDER' && (
+                <Link
+                  to="/provider/dashboard"
+                  className="block text-sm font-bold text-slate-700 hover:text-blue-600 py-2.5 px-3 rounded-xl hover:bg-blue-50 transition"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  🛠️ Provider Dashboard
+                </Link>
+              )}
+              {user.role === 'ADMIN' && (
+                <Link
+                  to="/admin/dashboard"
+                  className="block text-sm font-bold text-slate-700 hover:text-blue-600 py-2.5 px-3 rounded-xl hover:bg-blue-50 transition"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  ⚙️ Admin Dashboard
+                </Link>
+              )}
+              <div className="border-t border-slate-100 pt-1 mt-1">
+                <button
+                  onClick={() => { setIsMobileMenuOpen(false); logout(); }}
+                  className="block w-full text-left text-sm font-semibold text-red-600 py-2.5 px-3 rounded-xl hover:bg-red-50 transition"
+                >
+                  🚪 Logout
+                </button>
+              </div>
+            </>
+          )}
+
           {!isAuthenticated && (
             <Link 
               to="/?login=partner" 

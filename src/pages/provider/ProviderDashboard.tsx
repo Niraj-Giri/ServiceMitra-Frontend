@@ -543,7 +543,7 @@ export const ProviderDashboard: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col md:flex-row min-h-[80vh] gap-6">
+    <div className="flex flex-col md:flex-row min-h-[80vh] gap-6 px-4 md:px-0">
       {/* Sidebar */}
       <div className="w-full md:w-64 shrink-0 space-y-2">
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6">
@@ -551,52 +551,52 @@ export const ProviderDashboard: React.FC = () => {
           <p className="text-sm text-gray-500 truncate">{user?.provider?.serviceCategory || 'Service Provider'}</p>
         </div>
 
-        <nav className="flex flex-row md:flex-col overflow-x-auto md:overflow-x-visible space-x-1 md:space-x-0 md:space-y-1 pb-3 md:pb-0 whitespace-nowrap border-b md:border-b-0 border-slate-100">
+        <nav className="flex flex-row md:flex-col overflow-x-auto md:overflow-x-visible flex-nowrap md:flex-wrap space-x-1 md:space-x-0 md:space-y-1 pb-3 md:pb-0 whitespace-nowrap border-b md:border-b-0 border-slate-100">
           <button 
             onClick={() => setActiveTab('CURRENT_JOB')}
-            className={`text-center md:text-left px-4 py-3 rounded-lg font-medium transition ${activeTab === 'CURRENT_JOB' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
+            className={`shrink-0 text-center md:text-left px-4 py-3 rounded-lg font-medium transition ${activeTab === 'CURRENT_JOB' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
           >
             Current Job ({currentJobs.length})
           </button>
           <button 
             onClick={() => setActiveTab('HISTORY')}
-            className={`text-center md:text-left px-4 py-3 rounded-lg font-medium transition ${activeTab === 'HISTORY' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
+            className={`shrink-0 text-center md:text-left px-4 py-3 rounded-lg font-medium transition ${activeTab === 'HISTORY' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
           >
             Job History
           </button>
           <button 
             onClick={() => setActiveTab('EARNINGS')}
-            className={`text-center md:text-left px-4 py-3 rounded-lg font-medium transition ${activeTab === 'EARNINGS' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
+            className={`shrink-0 text-center md:text-left px-4 py-3 rounded-lg font-medium transition ${activeTab === 'EARNINGS' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
           >
             Earnings & Stats
           </button>
           <button 
             onClick={() => setActiveTab('INCENTIVES')}
-            className={`text-center md:text-left px-4 py-3 rounded-lg font-medium transition ${activeTab === 'INCENTIVES' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
+            className={`shrink-0 text-center md:text-left px-4 py-3 rounded-lg font-medium transition ${activeTab === 'INCENTIVES' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
           >
             Milestones & Incentives
           </button>
           <button 
             onClick={() => setActiveTab('SETTINGS')}
-            className={`text-center md:text-left px-4 py-3 rounded-lg font-medium transition ${activeTab === 'SETTINGS' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
+            className={`shrink-0 text-center md:text-left px-4 py-3 rounded-lg font-medium transition ${activeTab === 'SETTINGS' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
           >
             Settings & Availability
           </button>
           <button 
             onClick={() => setActiveTab('DISPUTES')}
-            className={`text-center md:text-left px-4 py-3 rounded-lg font-medium transition ${activeTab === 'DISPUTES' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
+            className={`shrink-0 text-center md:text-left px-4 py-3 rounded-lg font-medium transition ${activeTab === 'DISPUTES' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
           >
             Disputes & Complaints ({complaints.length})
           </button>
           <button 
             onClick={() => setActiveTab('MARKETPLACE')}
-            className={`text-center md:text-left px-4 py-3 rounded-lg font-medium transition ${activeTab === 'MARKETPLACE' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
+            className={`shrink-0 text-center md:text-left px-4 py-3 rounded-lg font-medium transition ${activeTab === 'MARKETPLACE' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
           >
             Find Jobs (Marketplace)
           </button>
           <button 
             onClick={() => setActiveTab('MY_BIDS')}
-            className={`text-center md:text-left px-4 py-3 rounded-lg font-medium transition ${activeTab === 'MY_BIDS' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
+            className={`shrink-0 text-center md:text-left px-4 py-3 rounded-lg font-medium transition ${activeTab === 'MY_BIDS' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
           >
             My Bids (Quotes)
           </button>
@@ -636,7 +636,7 @@ export const ProviderDashboard: React.FC = () => {
               <h3 className="text-lg font-semibold mb-4 text-gray-900 border-b pb-4">Job History</h3>
               
               {/* Job Stats Header */}
-              <div className="grid grid-cols-3 gap-4 mb-6">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
                 <div className="bg-emerald-50/50 border border-emerald-100 p-4 rounded-2xl flex items-center gap-3">
                   <div className="h-10 w-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600">
                     <CheckCircle2 className="h-5 w-5" />

@@ -238,7 +238,7 @@ export const ProviderSelection: React.FC = () => {
       <div className="glass-panel mb-8 flex flex-col gap-5 rounded-2xl p-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm font-bold uppercase tracking-[0.18em] text-blue-600">Step 2 of 2</p>
-          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">Choose a Professional</h1>
+          <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-slate-950 sm:text-3xl sm:text-4xl">Choose a Professional</h1>
           <p className="text-sm text-slate-500 mt-2">Compare verified pros by rating, distance, jobs completed, and experience.</p>
         </div>
         <div className="flex gap-2">

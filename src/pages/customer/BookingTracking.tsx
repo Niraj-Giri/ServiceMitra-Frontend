@@ -181,19 +181,19 @@ export const BookingTracking: React.FC = () => {
   const showChat = ['ACCEPTED', 'STARTED'].includes(bookingStatus);
 
   return (
-    <div className="max-w-5xl mx-auto py-8">
-      <div className={showChat ? "grid grid-cols-1 lg:grid-cols-3 gap-8" : "max-w-2xl mx-auto space-y-6"}>
+    <div className="max-w-5xl mx-auto py-6 px-4 sm:py-8">
+      <div className={showChat ? "grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8" : "max-w-2xl mx-auto space-y-6"}>
         <div className={showChat ? "lg:col-span-2 space-y-6" : "w-full space-y-6"}>
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8">
+          <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-sm p-5 sm:p-8">
 
   {/* Header */}
-  <div className="flex items-center justify-between mb-8">
+  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6 sm:mb-8">
     <div>
       <p className="text-sm text-slate-500 font-medium">
         Booking #{booking.id}
       </p>
 
-      <h2 className="text-3xl font-bold text-slate-900 mt-1">
+      <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mt-1">
         {getStatusMessage()}
       </h2>
     </div>
@@ -279,7 +279,7 @@ export const BookingTracking: React.FC = () => {
 
               <p
                 className={`
-                text-sm
+                text-[10px] sm:text-sm
                 font-semibold
 
                 ${
@@ -307,7 +307,7 @@ export const BookingTracking: React.FC = () => {
 </div>
 
           {/* Job Details Card */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 space-y-6">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-8 space-y-6">
             <h2 className="text-xl font-bold text-gray-900 border-b pb-3">Service Details</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
@@ -512,7 +512,7 @@ export const BookingTracking: React.FC = () => {
 
         {showChat && (
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden h-[600px] flex flex-col">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden h-[380px] sm:h-[500px] lg:h-[600px] flex flex-col">
               <div className="bg-blue-600 p-4 text-white">
                 <h3 className="font-bold">Chat with Provider</h3>
                 <p className="text-blue-100 text-sm">Usually replies in minutes</p>

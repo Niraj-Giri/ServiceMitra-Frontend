@@ -67,7 +67,7 @@ export const CategoryList: React.FC = () => {
         <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-sm font-bold uppercase tracking-[0.18em] text-blue-600">Services</p>
-            <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">Find the right professional</h1>
+            <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-slate-950 sm:text-3xl sm:text-4xl">Find the right professional</h1>
             <p className="mt-3 max-w-2xl text-slate-600">Browse available service categories and post your task — providers will compete to give you the best price.</p>
           </div>
           <div className="flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700">
