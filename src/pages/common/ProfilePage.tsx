@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { updateProfile, getAddresses, addAddress, deleteAddress } from '../../api/users';
-import { apiClient } from '../../api/client';
 import { Button } from '../../components/ui/Button';
 import { AddressMapPicker } from '../../components/ui/AddressMapPicker';
 

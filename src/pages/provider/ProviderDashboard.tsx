@@ -5,7 +5,7 @@ import { apiClient } from '../../api/client';
 import type { Booking, TaskRequest, Quote } from '../../types';
 import { getAvailableTasks, submitQuote, getMyQuotes, respondToCounter, withdrawQuote, getProviderTasks, startTask, completeTask } from '../../api/tasks';
 import {
-  CheckCircle2, XCircle, Clock, AlertTriangle
+  CheckCircle2, XCircle, Clock
 } from 'lucide-react';
 import { ProviderEarnings } from '../../components/provider/ProviderEarnings';
 import { ProviderIncentives } from '../../components/provider/ProviderIncentives';

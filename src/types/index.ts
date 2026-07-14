@@ -113,6 +113,7 @@ export interface Quote {
   providerRating?: number;
   providerTotalJobs?: number;
   providerExperienceYears?: number;
+  providerPhone?: string;
   quotedPriceNpr: number;
   counterPriceNpr?: number;
   finalPriceNpr?: number;
