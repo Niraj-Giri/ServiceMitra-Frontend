@@ -6,10 +6,12 @@ import { getMyTasks } from '../../api/tasks';
 import type { Booking, TaskRequest } from '../../types';
 import { 
   Plus, Calendar, Clock, MapPin, Star, 
-  MessageSquare, Phone, RefreshCw, XCircle, CalendarClock, AlertTriangle,
-  Gift, Copy, Check, Zap, ChevronRight
+  MessageSquare, Phone, RefreshCw, XCircle, CalendarClock,
+  Zap, ChevronRight
 } from 'lucide-react';
 import { ChatBox } from '../../components/chat/ChatBox';
+import { CustomerLoyalty } from '../../components/customer/CustomerLoyalty';
+import { CustomerDisputes } from '../../components/customer/CustomerDisputes';
 
 export const CustomerDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -37,11 +39,6 @@ export const CustomerDashboard: React.FC = () => {
 
   // Loyalty & Reward Points States
   const [loyaltyData, setLoyaltyData] = useState<{ pointsBalance: number; history: any[] }>({ pointsBalance: 0, history: [] });
-  const [referrerPhone, setReferrerPhone] = useState('');
-  const [referralSuccess, setReferralSuccess] = useState<string | null>(null);
-  const [referralError, setReferralError] = useState<string | null>(null);
-  const [applyingReferral, setApplyingReferral] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   const fetchLoyaltyData = async () => {
     try {
@@ -52,33 +49,7 @@ export const CustomerDashboard: React.FC = () => {
     }
   };
 
-  const handleApplyReferral = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!referrerPhone.trim()) return;
-    setApplyingReferral(true);
-    setReferralError(null);
-    setReferralSuccess(null);
-    try {
-      await apiClient.post('/loyalty/referral', {
-        referrerPhone: referrerPhone.trim()
-      });
-      setReferralSuccess('Referral bonus claimed successfully!');
-      setReferrerPhone('');
-      fetchLoyaltyData(); // reload points balance
-    } catch (err: any) {
-      const serverMessage = err.response?.data?.message || err.response?.data?.error?.message || err.message;
-      setReferralError(serverMessage || 'Failed to claim referral bonus. Make sure the phone number is correct.');
-    } finally {
-      setApplyingReferral(false);
-    }
-  };
 
-  const handleCopyCode = () => {
-    if (!user?.phone) return;
-    navigator.clipboard.writeText(user.phone);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   const fetchComplaints = async () => {
     try {
@@ -459,190 +430,22 @@ export const CustomerDashboard: React.FC = () => {
             )}
           </div>
         ) : activeTab === 'LOYALTY' ? (
-          <div className="space-y-8 animate-fadeIn">
-            {/* Top Row: Balance and Share cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Balance Box */}
-              <div className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white rounded-3xl p-6 shadow-xl flex flex-col justify-between relative overflow-hidden">
-                <div className="absolute right-0 bottom-0 translate-x-4 translate-y-4 opacity-10">
-                  <Gift className="h-48 w-48" />
-                </div>
-                <div>
-                  <span className="text-xs uppercase font-extrabold tracking-widest text-blue-100 block mb-1">Total Reward Points</span>
-                  <span className="text-5xl font-black font-mono">{loyaltyData.pointsBalance}</span>
-                  <p className="text-[11px] text-blue-100/80 mt-2 font-medium">
-                    Equivalent to <span className="font-bold">Rs. {loyaltyData.pointsBalance}</span> checkout discount!
-                  </p>
-                </div>
-                <div className="mt-8 pt-4 border-t border-white/10 flex justify-between items-center text-xs">
-                  <span className="text-blue-100 font-medium">Points validity: Lifetime</span>
-                  <span className="bg-white/20 px-3 py-1 rounded-full font-extrabold uppercase text-[9px] tracking-wider">Level 1 Member</span>
-                </div>
-              </div>
-
-              {/* Share and Claim Referrals */}
-              <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
-                <div>
-                  <h3 className="font-extrabold text-slate-900 text-base mb-1">Referral Program</h3>
-                  <p className="text-xs text-slate-500 leading-relaxed">
-                    Share your phone number with your friends. When they register using it, you both get <span className="font-bold text-blue-600">30 reward points</span>!
-                  </p>
-                  
-                  {/* Share code */}
-                  <div className="mt-4 flex items-center justify-between bg-slate-50 border border-slate-100 rounded-2xl p-3">
-                    <div className="space-y-0.5">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Your Referral Code</span>
-                      <span className="font-bold text-slate-800 text-sm font-mono">{user?.phone}</span>
-                    </div>
-                    <button
-                      onClick={handleCopyCode}
-                      className="p-2.5 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl transition text-slate-500 hover:text-blue-600 shadow-sm"
-                      title="Copy code"
-                    >
-                      {copied ? <Check className="h-4 w-4 text-emerald-600 animate-scale-in" /> : <Copy className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Claim referral input */}
-                <div className="mt-6 pt-5 border-t border-slate-100">
-                  <form onSubmit={handleApplyReferral} className="space-y-3">
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Enter Referrer's Phone Number</label>
-                      <div className="flex gap-2">
-                        <input
-                          type="tel"
-                          value={referrerPhone}
-                          onChange={(e) => setReferrerPhone(e.target.value)}
-                          placeholder="e.g. 98XXXXXXXX"
-                          className="flex-1 px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs bg-white font-mono"
-                        />
-                        <button
-                          type="submit"
-                          disabled={applyingReferral || !referrerPhone.trim()}
-                          className="px-4 py-2 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 text-white rounded-xl text-xs font-bold transition shadow-sm"
-                        >
-                          {applyingReferral ? 'Claiming...' : 'Claim Bonus'}
-                        </button>
-                      </div>
-                    </div>
-                    {referralSuccess && <p className="text-[11px] font-bold text-emerald-600 animate-fadeIn">{referralSuccess}</p>}
-                    {referralError && <p className="text-[11px] font-bold text-rose-600 animate-fadeIn">{referralError}</p>}
-                  </form>
-                </div>
-              </div>
-            </div>
-
-            {/* Bottom Section: Points History ledger */}
-            <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm">
-              <h3 className="font-extrabold text-slate-900 text-base mb-4">Points Transaction History</h3>
-              
-              {!loyaltyData.history || loyaltyData.history.length === 0 ? (
-                <div className="text-center py-10 text-slate-400 text-xs italic">
-                  No points transactions recorded yet.
-                </div>
-              ) : (
-                <div className="divide-y divide-slate-100">
-                  {loyaltyData.history.map((item: any) => {
-                    const isCredit = item.points > 0;
-                    return (
-                      <div key={item.id} className="py-3.5 flex justify-between items-center gap-4 text-xs">
-                        <div className="space-y-1">
-                          <span className="font-extrabold text-slate-800 block text-sm">
-                            {item.description}
-                          </span>
-                          <span className="text-[10px] text-slate-400 font-medium font-mono">
-                            {new Date(item.createdAt).toLocaleString()} | Action: {item.actionType}
-                          </span>
-                        </div>
-                        <span className={`font-extrabold text-sm font-mono shrink-0 ${
-                          isCredit ? 'text-emerald-600' : 'text-rose-600'
-                        }`}>
-                          {isCredit ? '+' : ''}{item.points} pts
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
+          <CustomerLoyalty
+            loyaltyData={loyaltyData}
+            userPhone={user?.phone}
+            fetchLoyaltyData={fetchLoyaltyData}
+          />
         ) : activeTab === 'DISPUTES' ? (
-          complaints.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-slate-300 bg-white/70 py-12 text-center">
-              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-50 text-rose-600">
-                <AlertTriangle className="h-6 w-6" />
-              </div>
-              <div className="font-bold text-slate-900">No disputes logged yet</div>
-              <p className="mt-1 text-sm text-slate-500">You can file a complaint directly from any completed booking's tracking page.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Left Column: Complaints list */}
-              <div className="lg:col-span-1 space-y-3">
-                {complaints.map((c) => (
-                  <div 
-                    key={c.id} 
-                    onClick={() => handleLoadComplaintMessages(c)}
-                    className={`p-4 border rounded-2xl cursor-pointer transition ${
-                      activeComplaint?.id === c.id ? 'border-blue-500 bg-blue-50/20' : 'border-slate-200 hover:bg-slate-50'
-                    }`}
-                  >
-                    <div className="flex justify-between items-center mb-1 text-xs">
-                      <span className="font-bold text-rose-600">Dispute #{c.id}</span>
-                      <span className={`px-2 py-0.5 rounded font-extrabold ${
-                        c.status === 'RESOLVED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                      }`}>{c.status}</span>
-                    </div>
-                    <h4 className="font-bold text-slate-900 text-sm truncate">{c.subject}</h4>
-                    <p className="text-xs text-slate-500 truncate mt-1">{c.description}</p>
-                  </div>
-                ))}
-              </div>
-
-              {/* Right Column: Messages Thread */}
-              <div className="lg:col-span-2 bg-slate-50/50 rounded-2xl border border-slate-200 p-6 flex flex-col justify-between h-[450px]">
-                {activeComplaint ? (
-                  <div className="flex flex-col h-full justify-between overflow-hidden">
-                    <div className="overflow-hidden flex flex-col flex-1">
-                      <div className="border-b border-slate-200 pb-3 mb-4 shrink-0">
-                        <h4 className="font-extrabold text-slate-950 text-base">{activeComplaint.subject}</h4>
-                        <p className="text-xs text-slate-500 mt-1">{activeComplaint.description}</p>
-                      </div>
-                      <div className="space-y-3 overflow-y-auto flex-1 pr-2 pb-4">
-                        {complaintMessages.map((msg) => (
-                          <div key={msg.id} className={`flex flex-col ${msg.senderRole === 'CUSTOMER' ? 'items-end' : 'items-start'}`}>
-                            <div className={`p-2.5 rounded-2xl max-w-xs text-xs ${
-                              msg.senderRole === 'CUSTOMER' ? 'bg-blue-600 text-white' : 'bg-white border border-slate-200 text-slate-800'
-                            }`}>
-                              <p>{msg.content}</p>
-                            </div>
-                            <span className="text-[9px] text-slate-400 mt-1">{msg.senderRole} • Just now</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    <form onSubmit={handleSendComplaintMessage} className="flex gap-2 border-t border-slate-200 pt-3 mt-4 shrink-0">
-                      <input 
-                        type="text" 
-                        placeholder="Type a message to discuss with Admin..."
-                        value={replyMessage}
-                        onChange={(e) => setReplyMessage(e.target.value)}
-                        className="flex-1 p-2.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-blue-500"
-                      />
-                      <button type="submit" className="bg-blue-600 hover:bg-blue-700 py-1.5 px-4 text-xs text-white font-bold rounded-xl transition">
-                        {sendingReply ? 'Sending...' : 'Send'}
-                      </button>
-                    </form>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center h-full text-slate-400 text-xs">
-                    Select a dispute ticket from the list to view logs.
-                  </div>
-                )}
-              </div>
-            </div>
-          )
+          <CustomerDisputes
+            complaints={complaints}
+            activeComplaint={activeComplaint}
+            complaintMessages={complaintMessages}
+            replyMessage={replyMessage}
+            sendingReply={sendingReply}
+            onSelectComplaint={handleLoadComplaintMessages}
+            onSendReply={handleSendComplaintMessage}
+            onSetReplyMessage={setReplyMessage}
+          />
         ) : getFilteredBookings().length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-300 bg-white/70 py-12 text-center">
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
@@ -848,7 +651,7 @@ export const CustomerDashboard: React.FC = () => {
               ✕
             </button>
             <div className="flex-1 h-full">
-              <ChatBox bookingId={chatBookingId} />
+              <ChatBox taskRequestId={chatBookingId} />
             </div>
           </div>
         </div>

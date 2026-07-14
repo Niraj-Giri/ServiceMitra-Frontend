@@ -12,6 +12,33 @@ export const ProviderJobDetail: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const { fetchUser } = useAuth();
   const [alertConfig, setAlertConfig] = useState<{ title: string; message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [showOtpInput, setShowOtpInput] = useState(false);
+  const [otp, setOtp] = useState('');
+
+  const getTimeRemainingStr = (scheduledAtStr: string) => {
+    const now = new Date();
+    const target = new Date(scheduledAtStr);
+    const diffMs = target.getTime() - now.getTime();
+    if (isNaN(diffMs)) return 'Time not set';
+    
+    const isPast = diffMs < 0;
+    const absDiff = Math.abs(diffMs);
+    
+    const mins = Math.floor(absDiff / 60000) % 60;
+    const hours = Math.floor(absDiff / 3600000) % 24;
+    const days = Math.floor(absDiff / 86400000);
+    
+    let timeStr = '';
+    if (days > 0) {
+      timeStr += `${days}d `;
+    }
+    if (hours > 0 || days > 0) {
+      timeStr += `${hours}h `;
+    }
+    timeStr += `${mins}m`;
+    
+    return isPast ? `${timeStr} ago` : `${timeStr} left`;
+  };
 
   const fetchBooking = async () => {
     try {
@@ -46,8 +73,18 @@ export const ProviderJobDetail: React.FC = () => {
 
   const handleStartJob = async () => {
     if (!booking) return;
+    if (!otp.trim()) {
+      setAlertConfig({
+        title: "Validation Error",
+        message: "OTP is required to start the job.",
+        type: "error"
+      });
+      return;
+    }
     try {
-      await startTask(booking.id);
+      await startTask(booking.id, otp.trim());
+      setShowOtpInput(false);
+      setOtp('');
       await fetchBooking();
     } catch (err: any) {
       setAlertConfig({
@@ -78,6 +115,7 @@ export const ProviderJobDetail: React.FC = () => {
 
   const bookingStatus = (booking.status || '').toUpperCase();
   const isPastTask = ['COMPLETED', 'CANCELLED'].includes(bookingStatus);
+  const showChat = ['ACCEPTED', 'STARTED'].includes(bookingStatus);
 
   return (
     <div className="max-w-6xl mx-auto py-8">
@@ -98,9 +136,9 @@ export const ProviderJobDetail: React.FC = () => {
         </span>
       </div>
 
-      <div className={isPastTask ? "max-w-2xl mx-auto" : "grid grid-cols-1 lg:grid-cols-3 gap-8"}>
+      <div className={showChat ? "grid grid-cols-1 lg:grid-cols-3 gap-8" : "max-w-2xl mx-auto"}>
         {/* Left Side: Job Details */}
-        <div className={isPastTask ? "w-full space-y-6" : "lg:col-span-1 space-y-6"}>
+        <div className={showChat ? "lg:col-span-1 space-y-6" : "w-full space-y-6"}>
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-6">
             <h2 className="text-xl font-bold text-gray-900 border-b pb-3">
               {isPastTask ? 'Completed Job Summary' : 'Job Details'}
@@ -113,7 +151,19 @@ export const ProviderJobDetail: React.FC = () => {
               </div>
               <div>
                 <span className="text-xs text-gray-400 block uppercase font-bold tracking-wider mb-0.5">Scheduled Time</span>
-                <span className="font-semibold text-gray-800">{new Date(booking.scheduledAt).toLocaleString()}</span>
+                <span className="font-semibold text-gray-800 flex flex-wrap items-center gap-2 mt-0.5">
+                  <span>{new Date(booking.scheduledAt).toLocaleString()}</span>
+                  {bookingStatus === 'ACCEPTED' && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                      {getTimeRemainingStr(booking.scheduledAt)}
+                    </span>
+                  )}
+                  {bookingStatus === 'STARTED' && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-50 text-green-700 border border-green-200">
+                      In Progress ({getTimeRemainingStr(booking.scheduledAt)} elapsed)
+                    </span>
+                  )}
+                </span>
               </div>
               
               {booking.customer && (
@@ -162,12 +212,42 @@ export const ProviderJobDetail: React.FC = () => {
             {/* Actions Block */}
             <div className="border-t border-gray-100 pt-6 space-y-3">
               {bookingStatus === 'ACCEPTED' && (
-                <button 
-                  onClick={handleStartJob}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition"
-                >
-                  Start Job
-                </button>
+                <div className="space-y-3">
+                  {showOtpInput ? (
+                    <div className="space-y-3">
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider text-left">Enter Start Job OTP</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          maxLength={6}
+                          placeholder="Enter OTP (e.g. 1234)"
+                          value={otp}
+                          onChange={e => setOtp(e.target.value)}
+                          className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                        <button
+                          onClick={handleStartJob}
+                          className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-lg text-sm transition"
+                        >
+                          Verify
+                        </button>
+                        <button
+                          onClick={() => setShowOtpInput(false)}
+                          className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold px-3 py-2 rounded-lg text-sm transition"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button 
+                      onClick={() => setShowOtpInput(true)}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition"
+                    >
+                      Start Job
+                    </button>
+                  )}
+                </div>
               )}
 
               {bookingStatus === 'STARTED' && (
@@ -189,7 +269,7 @@ export const ProviderJobDetail: React.FC = () => {
         </div>
 
         {/* Right Side: Chat */}
-        {!isPastTask && (
+        {(bookingStatus === 'ACCEPTED' || bookingStatus === 'STARTED') && (
           <div className="lg:col-span-2">
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden h-[600px] flex flex-col">
               <div className="bg-blue-600 p-4 text-white">

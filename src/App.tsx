@@ -20,6 +20,7 @@ import { ServiceDetail } from './pages/customer/ServiceDetail';
 import { BookingTracking } from './pages/customer/BookingTracking';
 import { PostTask } from './pages/customer/PostTask';
 import { TaskDetail } from './pages/customer/TaskDetail';
+import { TaskCheckout } from './pages/customer/TaskCheckout';
 
 const App: React.FC = () => {
   const { fetchUser, isAuthenticated } = useAuth();
@@ -54,6 +55,7 @@ const App: React.FC = () => {
             <Route path="customer/dashboard" element={<CustomerDashboard />} />
             <Route path="task/new" element={<PostTask />} />
             <Route path="task/:taskId" element={<TaskDetail />} />
+            <Route path="customer/tasks/:taskId/checkout/:quoteId" element={<TaskCheckout />} />
             <Route path="tracking/:bookingId" element={<BookingTracking />} />
           </Route>
 

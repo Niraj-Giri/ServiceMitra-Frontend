@@ -23,9 +23,17 @@ export const ChatBox: React.FC<{ bookingId?: number; taskRequestId?: number }> =
         ? `/chat/bookings/${bookingId}/messages`
         : `/chat/tasks/${taskRequestId}/messages`;
       const response = await apiClient.get(url);
-      setMessages(response.data);
+      const data = response.data;
+      if (Array.isArray(data)) {
+        setMessages(data);
+      } else if (data && typeof data === 'object' && Array.isArray((data as any).data)) {
+        setMessages((data as any).data);
+      } else {
+        setMessages([]);
+      }
     } catch (err) {
       console.error('Failed to fetch messages', err);
+      setMessages([]);
     }
   };
 
@@ -38,29 +46,46 @@ export const ChatBox: React.FC<{ bookingId?: number; taskRequestId?: number }> =
   useEffect(() => {
     // Only scroll to the bottom when the list of message IDs actually changes.
     // This prevents jump-scrolling on mobile when polling executes every 3s.
-    const messagesString = JSON.stringify(messages.map(m => m.id));
+    const messagesString = JSON.stringify((messages || []).map(m => m.id));
     if (messagesString !== prevMessagesRef.current) {
-      if (messagesContainerRef.current) {
-        messagesContainerRef.current.scrollTo({
-          top: messagesContainerRef.current.scrollHeight,
-          behavior: 'smooth',
-        });
-      }
+      setTimeout(() => {
+        if (messagesContainerRef.current) {
+          messagesContainerRef.current.scrollTo({
+            top: messagesContainerRef.current.scrollHeight,
+            behavior: 'smooth',
+          });
+        }
+      }, 100);
       prevMessagesRef.current = messagesString;
     }
   }, [messages]);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !user) return;
+    if (!newMessage.trim()) return;
+
+    let currentUser = user;
+    if (!currentUser) {
+      try {
+        const stored = localStorage.getItem('user');
+        if (stored) {
+          currentUser = JSON.parse(stored);
+        }
+      } catch (e) {}
+    }
+
+    if (!currentUser) {
+      console.warn('Cannot send message: User not loaded');
+      return;
+    }
 
     try {
       const url = bookingId 
         ? `/chat/bookings/${bookingId}/messages`
         : `/chat/tasks/${taskRequestId}/messages`;
+      
+      console.log('Sending chat message:', url, 'Content:', newMessage);
       await apiClient.post(url, {
-        senderId: user.id,
-        senderRole: user.role,
         content: newMessage,
       });
 
@@ -85,7 +110,7 @@ export const ChatBox: React.FC<{ bookingId?: number; taskRequestId?: number }> =
 
       {/* Messages */}
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-3 py-4 space-y-3">
-        {messages.length === 0 ? (
+        {(!messages || !Array.isArray(messages) || messages.length === 0) ? (
           <div className="text-center mt-16">
             <div className="text-4xl mb-2">💬</div>
             <p className="text-gray-500 text-sm">
@@ -96,14 +121,15 @@ export const ChatBox: React.FC<{ bookingId?: number; taskRequestId?: number }> =
             </p>
           </div>
         ) : (
-          messages.map((msg) => {
+          (messages || []).map((msg) => {
             const msgSenderId = msg.senderId !== undefined ? msg.senderId : (msg as any).sender_id;
             const msgSenderRole = msg.senderRole !== undefined ? msg.senderRole : (msg as any).sender_role;
             const msgContent = msg.content !== undefined ? msg.content : (msg as any).content;
             const msgCreatedAt = msg.createdAt !== undefined ? msg.createdAt : (msg as any).created_at;
 
-            const isMe = String(msgSenderId) === String(user?.id) && 
-                         String(msgSenderRole).toUpperCase() === String(user?.role).toUpperCase();
+            const isMe = !!user && 
+                         (String(msgSenderId) === String(user.id) || String(msgSenderId) === String((user as any).userId)) && 
+                         String(msgSenderRole).toUpperCase() === String(user.role).toUpperCase();
 
             return (
               <div

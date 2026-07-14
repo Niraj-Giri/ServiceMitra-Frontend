@@ -14,6 +14,7 @@ interface FormState {
   title: string;
   description: string;
   preferredDate: string;
+  preferredSlots: string[];
   budgetMinNpr: string;
   budgetMaxNpr: string;
   address: string;
@@ -41,6 +42,7 @@ export const PostTask: React.FC = () => {
     title: '',
     description: '',
     preferredDate: '',
+    preferredSlots: [''],
     budgetMinNpr: '',
     budgetMaxNpr: '',
     address: '',
@@ -96,12 +98,17 @@ export const PostTask: React.FC = () => {
     if (s === 1) {
       if (!form.title.trim()) return 'Please enter a job title.';
       if (!form.description.trim() || form.description.length < 20) return 'Please describe the job in at least 20 characters.';
+      if (!form.preferredSlots[0]) {
+        return 'Please select your preferred date & time.';
+      }
+      const now = new Date();
+      if (new Date(form.preferredSlots[0]) <= now) {
+        return 'Preferred date & time must be in the future.';
+      }
     }
     if (s === 2) {
-      const min = parseFloat(form.budgetMinNpr);
-      const max = parseFloat(form.budgetMaxNpr);
-      if (isNaN(min) || min <= 0) return 'Enter a valid minimum budget.';
-      if (isNaN(max) || max < min) return 'Maximum budget must be ≥ minimum budget.';
+      const budget = parseFloat(form.budgetMinNpr);
+      if (isNaN(budget) || budget <= 0) return 'Please enter a valid budget greater than zero.';
     }
     if (s === 3) {
       if (!form.address.trim()) return 'Please enter the job location.';
@@ -126,11 +133,12 @@ export const PostTask: React.FC = () => {
         title: form.title,
         description: form.description,
         budgetMinNpr: parseFloat(form.budgetMinNpr),
-        budgetMaxNpr: parseFloat(form.budgetMaxNpr),
+        budgetMaxNpr: parseFloat(form.budgetMinNpr),
         address: form.address,
         latitude: form.latitude ?? undefined,
         longitude: form.longitude ?? undefined,
-        preferredDate: form.preferredDate || undefined,
+        preferredDate: form.preferredSlots[0]?.split('T')[0] || undefined,
+        preferredSlots: form.preferredSlots,
         pointsToRedeem: form.pointsToRedeem,
       });
       navigate(`/task/${task.id}`, { state: { fromPost: true } });
@@ -242,13 +250,15 @@ export const PostTask: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1.5">Preferred Date (optional)</label>
+                <label className="block text-sm font-bold text-slate-700 mb-1.5">Preferred Date & Time <span className="text-red-500">*</span></label>
                 <input
-                  id="task-date"
-                  type="date"
-                  value={form.preferredDate}
-                  onChange={e => set('preferredDate', e.target.value)}
-                  min={new Date().toISOString().split('T')[0]}
+                  type="datetime-local"
+                  required
+                  value={form.preferredSlots[0] || ''}
+                  min={new Date(Date.now() + 60000).toISOString().slice(0, 16)}
+                  onChange={e => {
+                    setForm(f => ({ ...f, preferredSlots: [e.target.value] }));
+                  }}
                   className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition"
                 />
               </div>
@@ -264,36 +274,22 @@ export const PostTask: React.FC = () => {
               <p className="text-sm text-slate-500">Providers will see your range and quote accordingly. You can still negotiate.</p>
             </div>
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1.5">Min Budget (NPR) <span className="text-red-500">*</span></label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">Rs.</span>
-                    <input
-                      id="budget-min"
-                      type="number"
-                      min={0}
-                      value={form.budgetMinNpr}
-                      onChange={e => set('budgetMinNpr', e.target.value)}
-                      placeholder="500"
-                      className="w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 py-3 text-slate-900 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1.5">Max Budget (NPR) <span className="text-red-500">*</span></label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">Rs.</span>
-                    <input
-                      id="budget-max"
-                      type="number"
-                      min={0}
-                      value={form.budgetMaxNpr}
-                      onChange={e => set('budgetMaxNpr', e.target.value)}
-                      placeholder="2000"
-                      className="w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 py-3 text-slate-900 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition"
-                    />
-                  </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1.5">Your Budget (NPR) <span className="text-red-500">*</span></label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">Rs.</span>
+                  <input
+                    id="budget-min"
+                    type="number"
+                    min={0}
+                    value={form.budgetMinNpr}
+                    onChange={e => {
+                      set('budgetMinNpr', e.target.value);
+                      set('budgetMaxNpr', e.target.value);
+                    }}
+                    placeholder="1000"
+                    className="w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 py-3 text-slate-900 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition"
+                  />
                 </div>
               </div>
 
@@ -387,10 +383,16 @@ export const PostTask: React.FC = () => {
                 <Row label="Service" value={service ? `${service.name} (${service.category})` : '—'} />
                 <Row label="Title" value={form.title} />
                 <Row label="Description" value={form.description} />
-                <Row label="Preferred Date" value={form.preferredDate || 'Flexible'} />
+                <div>
+                  <span className="w-32 shrink-0 font-bold text-slate-500 block mb-1">Preferred Slots:</span>
+                  <div className="pl-4 space-y-1 text-slate-700 font-semibold">
+                    {form.preferredSlots.map((s, idx) => (
+                      <div key={idx}>Option {idx + 1}: {s ? new Date(s).toLocaleString() : '—'}</div>
+                    ))}
+                  </div>
+                </div>
                 <div className="border-t border-slate-200 pt-3" />
-                <Row label="Min Budget" value={`Rs. ${form.budgetMinNpr}`} />
-                <Row label="Max Budget" value={`Rs. ${form.budgetMaxNpr}`} />
+                <Row label="Budget" value={`Rs. ${form.budgetMinNpr}`} />
                 {form.pointsToRedeem > 0 && <Row label="Points Redeemed" value={`${form.pointsToRedeem} pts (Rs. ${form.pointsToRedeem} off)`} />}
                 <div className="border-t border-slate-200 pt-3" />
                 <Row label="Location" value={form.address} />

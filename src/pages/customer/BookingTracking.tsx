@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { apiClient } from '../../api/client';
 import type { Booking } from '../../types';
 import { ChatBox } from '../../components/chat/ChatBox';
+import { getTaskById } from '../../api/tasks';
 
 export const BookingTracking: React.FC = () => {
   const { bookingId } = useParams();
@@ -16,6 +17,8 @@ export const BookingTracking: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [ratingError, setRatingError] = useState('');
+  const [existingRating, setExistingRating] = useState<any | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
 
   // Complaint State
   const [showComplaintModal, setShowComplaintModal] = useState(false);
@@ -55,13 +58,30 @@ export const BookingTracking: React.FC = () => {
     setSubmitting(true);
     setRatingError('');
     try {
-      await apiClient.post('/ratings', {
-        bookingId: Number(bookingId),
-        punctualityScore: punctuality,
-        qualityScore: quality,
-        behaviorScore: behavior,
-        comment: comment
-      });
+      if (existingRating) {
+        // Edit existing review
+        const response = await apiClient.put(`/ratings/bookings/${bookingId}`, {
+          bookingId: Number(bookingId),
+          punctualityScore: punctuality,
+          qualityScore: quality,
+          behaviorScore: behavior,
+          comment: comment
+        });
+        const updated = response.data.data || response.data;
+        setExistingRating(updated);
+        setIsEditing(false);
+      } else {
+        // Submit new review
+        const response = await apiClient.post('/ratings', {
+          bookingId: Number(bookingId),
+          punctualityScore: punctuality,
+          qualityScore: quality,
+          behaviorScore: behavior,
+          comment: comment
+        });
+        const created = response.data.data || response.data;
+        setExistingRating(created);
+      }
       setSubmitted(true);
     } catch (err: any) {
       setRatingError(err.message || 'Failed to submit rating');
@@ -71,11 +91,55 @@ export const BookingTracking: React.FC = () => {
   };
 
   useEffect(() => {
+    let ratingFetched = false;
     const fetchBooking = async () => {
       try {
-        // Poll for booking status updates
-        const response = await apiClient.get(`/bookings/${bookingId}`);
-        setBooking(response.data);
+        const task = await getTaskById(Number(bookingId), false);
+        const acceptedQuote = task.quotes?.find(q => q.id === task.acceptedQuoteId);
+
+        const mapped: Booking = {
+          id: task.id,
+          serviceName: task.serviceName || task.category,
+          scheduledAt: task.preferredDate || task.createdAt,
+          customer: task.customer ? { name: task.customer.name, phone: task.customer.phone } : null,
+          address: task.address,
+          notes: task.description,
+          status: task.status as any,
+          amountNpr: task.finalAmountNpr,
+          baseAmount: task.finalAmountNpr,
+          totalBill: task.finalAmountNpr,
+          platformFee: task.platformFee,
+          providerEarnings: task.finalAmountNpr ? task.finalAmountNpr * 0.90 : 0,
+          startOtp: task.startOtp,
+          provider: acceptedQuote ? {
+            id: acceptedQuote.providerId,
+            name: acceptedQuote.providerName,
+            businessName: acceptedQuote.providerBusinessName,
+            phone: acceptedQuote.providerPhone,
+            profilePhotoUrl: acceptedQuote.providerProfilePhoto,
+            ratingCache: acceptedQuote.providerRating ? Number(acceptedQuote.providerRating) : 5.0
+          } : null
+        } as any;
+
+        setBooking(mapped);
+
+        if (task.status === 'COMPLETED' && !ratingFetched) {
+          try {
+            const ratingResponse = await apiClient.get(`/ratings/bookings/${bookingId}`);
+            if (ratingResponse.data) {
+              const rat = ratingResponse.data.data || ratingResponse.data;
+              setExistingRating(rat);
+              setPunctuality(rat.punctualityScore);
+              setQuality(rat.qualityScore);
+              setBehavior(rat.behaviorScore);
+              setComment(rat.comment || '');
+              setSubmitted(true);
+              ratingFetched = true;
+            }
+          } catch (e) {
+            // Ignore 404/not found errors when rating doesn't exist yet
+          }
+        }
       } catch (err) {
         console.error(err);
       }
@@ -113,10 +177,13 @@ export const BookingTracking: React.FC = () => {
     }
   };
 
+  const bookingStatus = (booking.status || '').toUpperCase();
+  const showChat = ['ACCEPTED', 'STARTED'].includes(bookingStatus);
+
   return (
     <div className="max-w-5xl mx-auto py-8">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-6">
+      <div className={showChat ? "grid grid-cols-1 lg:grid-cols-3 gap-8" : "max-w-2xl mx-auto space-y-6"}>
+        <div className={showChat ? "lg:col-span-2 space-y-6" : "w-full space-y-6"}>
           <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8">
 
   {/* Header */}
@@ -312,9 +379,44 @@ export const BookingTracking: React.FC = () => {
                   </button>
                 </div>
                 
-                {submitted ? (
-                  <div className="bg-green-50 border border-green-200 text-green-800 p-4 rounded-xl text-center text-sm font-semibold">
-                    Thank you for your feedback! Your review has been submitted successfully.
+                {submitted && !isEditing ? (
+                  <div className="space-y-4">
+                    <div className="bg-green-50 border border-green-200 text-green-800 p-4 rounded-xl text-center text-sm font-semibold">
+                      Thank you for your feedback! Your review has been submitted.
+                    </div>
+                    {existingRating && (
+                      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3 text-sm">
+                        <div className="flex justify-between items-center font-bold text-slate-800">
+                          <span>Your Ratings:</span>
+                          <button
+                            type="button"
+                            onClick={() => setIsEditing(true)}
+                            className="text-xs text-blue-600 hover:text-blue-800 font-bold underline"
+                          >
+                            Edit Review
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-xs font-semibold text-slate-700">
+                          <div className="bg-white border border-slate-200/60 p-2.5 rounded-xl text-center">
+                            <span className="block text-slate-400 text-[10px] uppercase mb-0.5">Punctuality</span>
+                            <span className="text-yellow-600 font-bold">★ {existingRating.punctualityScore}</span>
+                          </div>
+                          <div className="bg-white border border-slate-200/60 p-2.5 rounded-xl text-center">
+                            <span className="block text-slate-400 text-[10px] uppercase mb-0.5">Quality</span>
+                            <span className="text-yellow-600 font-bold">★ {existingRating.qualityScore}</span>
+                          </div>
+                          <div className="bg-white border border-slate-200/60 p-2.5 rounded-xl text-center">
+                            <span className="block text-slate-400 text-[10px] uppercase mb-0.5">Behavior</span>
+                            <span className="text-yellow-600 font-bold">★ {existingRating.behaviorScore}</span>
+                          </div>
+                        </div>
+                        {existingRating.comment && (
+                          <div className="bg-white border border-slate-200/60 p-3 rounded-xl italic text-slate-700">
+                            "{existingRating.comment}"
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <form onSubmit={handleRatingSubmit} className="space-y-4">
@@ -408,17 +510,19 @@ export const BookingTracking: React.FC = () => {
           </div>
         </div>
 
-        <div className="lg:col-span-1">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden h-[600px] flex flex-col">
-            <div className="bg-blue-600 p-4 text-white">
-              <h3 className="font-bold">Chat with Provider</h3>
-              <p className="text-blue-100 text-sm">Usually replies in minutes</p>
-            </div>
-            <div className="flex-1 overflow-hidden">
-              <ChatBox bookingId={Number(bookingId)} />
+        {showChat && (
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden h-[600px] flex flex-col">
+              <div className="bg-blue-600 p-4 text-white">
+                <h3 className="font-bold">Chat with Provider</h3>
+                <p className="text-blue-100 text-sm">Usually replies in minutes</p>
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <ChatBox taskRequestId={Number(bookingId)} />
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* COMPLAINT MODAL */}

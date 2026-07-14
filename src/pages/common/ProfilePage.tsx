@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { updateProfile } from '../../api/users';
+import { updateProfile, getAddresses, addAddress, deleteAddress } from '../../api/users';
 import { apiClient } from '../../api/client';
 import { Button } from '../../components/ui/Button';
 import { AddressMapPicker } from '../../components/ui/AddressMapPicker';
@@ -39,8 +39,8 @@ export const ProfilePage: React.FC = () => {
   const loadAddresses = async () => {
     if (user?.role !== 'CUSTOMER') return;
     try {
-      const response = await apiClient.get('/users/addresses');
-      setAddresses(response.data);
+      const data = await getAddresses();
+      setAddresses(data);
     } catch (err) {
       console.error('Failed to load user addresses', err);
     }
@@ -80,7 +80,7 @@ export const ProfilePage: React.FC = () => {
     setAddressSuccess('');
 
     try {
-      await apiClient.post('/users/addresses', {
+      await addAddress({
         label: addressLabel,
         line1: addressLine,
         latitude: addressLat || 27.7007,
@@ -106,7 +106,7 @@ export const ProfilePage: React.FC = () => {
   const handleDeleteAddress = async (id: number) => {
     if (!window.confirm('Are you sure you want to delete this address?')) return;
     try {
-      await apiClient.delete(`/users/addresses/${id}`);
+      await deleteAddress(id);
       await loadAddresses();
     } catch (err) {
       console.error('Failed to delete address', err);

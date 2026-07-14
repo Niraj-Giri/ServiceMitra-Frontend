@@ -13,6 +13,7 @@ export interface CreateTaskPayload {
   latitude?: number;
   longitude?: number;
   preferredDate?: string;
+  preferredSlots?: string[];
   pointsToRedeem?: number;
 }
 
@@ -54,8 +55,8 @@ export const withdrawQuote = (taskId: number, quoteId: number): Promise<Quote> =
 export const getProviderTasks = (): Promise<TaskRequest[]> =>
   apiClient.get('/tasks/provider').then(r => r.data);
 
-export const startTask = (taskId: number): Promise<TaskRequest> =>
-  apiClient.post(`/tasks/${taskId}/start`).then(r => r.data);
+export const startTask = (taskId: number, otp: string): Promise<TaskRequest> =>
+  apiClient.post(`/tasks/${taskId}/start`, { otp }).then(r => r.data);
 
 export const completeTask = (taskId: number): Promise<TaskRequest> =>
   apiClient.post(`/tasks/${taskId}/complete`).then(r => r.data);

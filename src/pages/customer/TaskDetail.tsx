@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  getTaskById, acceptQuote, counterOffer, cancelTask
+  getTaskById, counterOffer, cancelTask
 } from '../../api/tasks';
 import type { TaskRequest, Quote, TaskStatus, QuoteStatus } from '../../types';
 import {
@@ -61,19 +61,9 @@ export const TaskDetail: React.FC = () => {
 
   useEffect(() => { fetchTask(); }, [fetchTask]);
 
-  const handleAccept = async (quoteId: number) => {
+  const handleAccept = (quoteId: number) => {
     if (!task) return;
-    setActionLoading(`accept-${quoteId}`);
-    setError(null);
-    try {
-      const updated = await acceptQuote(task.id, quoteId);
-      setTask(updated);
-    } catch (e: unknown) {
-      const axErr = e as { response?: { data?: { message?: string } } };
-      setError(axErr?.response?.data?.message ?? 'Failed to accept quote.');
-    } finally {
-      setActionLoading(null);
-    }
+    navigate(`/customer/tasks/${task.id}/checkout/${quoteId}`);
   };
 
   const handleCounterSubmit = async () => {
@@ -211,13 +201,41 @@ export const TaskDetail: React.FC = () => {
             onCounter={undefined}
             isExpanded
           />
-          {task.status === 'COMPLETED' && (
-            <div className="mt-4 rounded-xl bg-slate-50 border border-slate-100 p-4 space-y-1 text-sm">
-              <div className="flex justify-between"><span className="text-slate-500">Final Amount</span><span className="font-bold">Rs. {task.finalAmountNpr?.toLocaleString()}</span></div>
-              {task.platformFee && <div className="flex justify-between"><span className="text-slate-500">Platform Fee (10%)</span><span className="font-bold">Rs. {task.platformFee.toLocaleString()}</span></div>}
-              {task.pointsRedeemed && task.pointsRedeemed > 0 && (
-                <div className="flex justify-between"><span className="text-slate-500">Points Discount</span><span className="font-bold text-amber-600">- Rs. {task.pointsDiscountNpr}</span></div>
-              )}
+          <div className="mt-4 rounded-xl bg-slate-50 border border-slate-100 p-4 space-y-2 text-xs font-semibold">
+            <h3 className="font-extrabold text-slate-800 text-sm uppercase tracking-wider mb-2">Billing Breakdown</h3>
+            <div className="flex justify-between">
+              <span className="text-slate-500">Accepted Bid Price</span>
+              <span className="font-bold text-slate-900">Rs. {task.finalAmountNpr?.toLocaleString()}</span>
+            </div>
+            {task.couponDiscountNpr && task.couponDiscountNpr > 0 && (
+              <div className="flex justify-between text-emerald-600 font-bold">
+                <span>Coupon Discount ({task.couponCode})</span>
+                <span>- Rs. {task.couponDiscountNpr.toLocaleString()}</span>
+              </div>
+            )}
+            {task.pointsDiscountNpr && task.pointsDiscountNpr > 0 && (
+              <div className="flex justify-between text-amber-600 font-bold">
+                <span>Reward Points Discount ({task.pointsRedeemed} pts)</span>
+                <span>- Rs. {task.pointsDiscountNpr.toLocaleString()}</span>
+              </div>
+            )}
+            <div className="border-t border-slate-200 pt-2 flex justify-between items-baseline font-bold">
+              <span className="text-slate-800">Final Paid Amount</span>
+              <span className="text-sm text-blue-600 font-extrabold">
+                Rs. {((task.finalAmountNpr || 0) - (task.couponDiscountNpr || 0) - (task.pointsDiscountNpr || 0)).toLocaleString()}
+              </span>
+            </div>
+            {task.paymentMethod && (
+              <div className="flex justify-between text-[10px] text-slate-450 border-t border-slate-200/60 pt-2">
+                <span>Payment Method</span>
+                <span className="font-bold uppercase">{task.paymentMethod === 'COD' ? 'Cash / COD' : task.paymentMethod}</span>
+              </div>
+            )}
+          </div>
+          {task.status === 'ACCEPTED' && task.startOtp && (
+            <div className="mt-4 bg-blue-50 border border-blue-200 rounded-xl p-4 text-center space-y-1">
+              <div className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">Share this OTP with the provider to start the job</div>
+              <div className="text-3xl font-black text-blue-700 tracking-widest">{task.startOtp}</div>
             </div>
           )}
         </div>
@@ -410,9 +428,11 @@ const QuoteCard: React.FC<QuoteCardProps> = ({
             )}
           </div>
 
-          <div className="border-t border-slate-100 pt-3 h-[350px] rounded-xl overflow-hidden">
-            <ChatBox taskRequestId={quote.taskRequestId} />
-          </div>
+          {(taskStatus === 'ACCEPTED' || taskStatus === 'STARTED') && (
+            <div className="border-t border-slate-100 pt-3 h-[350px] rounded-xl overflow-hidden">
+              <ChatBox taskRequestId={quote.taskRequestId} />
+            </div>
+          )}
 
           {/* Action buttons */}
           {canAct && (

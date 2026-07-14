@@ -146,6 +146,9 @@ export interface TaskRequest {
   platformFee?: number;
   pointsRedeemed?: number;
   pointsDiscountNpr?: number;
+  couponCode?: string;
+  couponDiscountNpr?: number;
+  paymentMethod?: string;
   startOtp?: string;
   startedAt?: string;
   completedAt?: string;
