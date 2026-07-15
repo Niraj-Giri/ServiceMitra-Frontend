@@ -24,11 +24,17 @@ interface ComplaintMessage {
   id: number;
   complaintId: number;
   senderRole: string; // CUSTOMER, PROVIDER, ADMIN
-  message: string;
+  content: string;
   createdAt: string;
 }
 
-export const ComplaintTab: React.FC = () => {
+interface ComplaintTabProps {
+  onSelectComplaint?: (id: number) => void;
+  onSelectCustomer?: (id: number) => void;
+  onSelectProvider?: (id: number) => void;
+}
+
+export const ComplaintTab: React.FC<ComplaintTabProps> = ({ onSelectComplaint, onSelectCustomer, onSelectProvider }) => {
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -79,7 +85,7 @@ export const ComplaintTab: React.FC = () => {
     if (!selectedComplaint || !replyText.trim()) return;
     try {
       await apiClient.post(`/admin/complaints/${selectedComplaint.id}/messages`, {
-        message: replyText,
+        content: replyText,
         senderRole: 'ADMIN'
       });
       setReplyText('');
@@ -202,7 +208,23 @@ export const ComplaintTab: React.FC = () => {
             <tbody className="divide-y divide-slate-100 text-sm font-semibold">
               {filteredComplaints.map((c) => (
                 <tr key={c.id} className="hover:bg-slate-50/20">
-                  <td className="px-6 py-4 font-mono font-bold text-slate-900">#{c.id}</td>
+                  <td className="px-6 py-4">
+                    <span className="font-mono font-bold text-slate-900 block">#{c.id}</span>
+                    <div className="flex flex-col gap-0.5 mt-1 text-[9px] font-bold text-slate-400 whitespace-nowrap">
+                      <span 
+                        onClick={() => onSelectCustomer && onSelectCustomer(c.customerId)}
+                        className={onSelectCustomer ? 'cursor-pointer hover:underline hover:text-blue-600' : ''}
+                      >
+                        Cust: #{c.customerId}
+                      </span>
+                      <span 
+                        onClick={() => onSelectProvider && onSelectProvider(c.providerId)}
+                        className={onSelectProvider ? 'cursor-pointer hover:underline hover:text-blue-600' : ''}
+                      >
+                        Prov: #{c.providerId}
+                      </span>
+                    </div>
+                  </td>
                   <td className="px-6 py-4 font-mono text-slate-600">#{c.bookingId}</td>
                   <td className="px-6 py-4">
                     <div className="font-bold text-slate-800 leading-tight">{c.subject}</div>
@@ -231,7 +253,7 @@ export const ComplaintTab: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 text-right">
                     <button
-                      onClick={() => loadComplaintWorkspace(c)}
+                      onClick={() => onSelectComplaint ? onSelectComplaint(c.id) : loadComplaintWorkspace(c)}
                       className="px-2.5 py-1 hover:bg-blue-50 text-slate-600 hover:text-blue-700 rounded-lg text-xs font-bold transition inline-flex items-center gap-1"
                     >
                       <Eye className="h-3.5 w-3.5" /> Workspace Room
@@ -351,7 +373,7 @@ export const ComplaintTab: React.FC = () => {
                             <span className="text-[9px] font-extrabold opacity-75 uppercase tracking-wider block mb-1">
                               {m.senderRole} • {new Date(m.createdAt).toLocaleTimeString()}
                             </span>
-                            <p className="font-semibold text-[11px] leading-relaxed">{m.message}</p>
+                            <p className="font-semibold text-[11px] leading-relaxed">{m.content}</p>
                           </div>
                         ))}
                         {messages.length === 0 && (

@@ -45,9 +45,10 @@ interface Booking {
 
 interface BookingTabProps {
   onRefreshStats: () => void;
+  onSelectBooking?: (id: number) => void;
 }
 
-export const BookingTab: React.FC<BookingTabProps> = ({ onRefreshStats }) => {
+export const BookingTab: React.FC<BookingTabProps> = ({ onRefreshStats, onSelectBooking }) => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -310,7 +311,7 @@ export const BookingTab: React.FC<BookingTabProps> = ({ onRefreshStats }) => {
                   </td>
                   <td className="px-6 py-4 text-right">
                     <button
-                      onClick={() => loadBookingDetails(b)}
+                      onClick={() => onSelectBooking ? onSelectBooking(b.id) : loadBookingDetails(b)}
                       className="px-2.5 py-1 hover:bg-blue-50 text-slate-600 hover:text-blue-700 rounded-lg text-xs font-bold transition inline-flex items-center gap-1"
                     >
                       <Eye className="h-3.5 w-3.5" /> Details & Actions

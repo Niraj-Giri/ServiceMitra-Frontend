@@ -308,7 +308,18 @@ export const BookingTracking: React.FC = () => {
 
           {/* Job Details Card */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-8 space-y-6">
-            <h2 className="text-xl font-bold text-gray-900 border-b pb-3">Service Details</h2>
+            <div className="flex justify-between items-center border-b pb-3">
+              <h2 className="text-xl font-bold text-gray-900">Service Details</h2>
+              {bookingStatus !== 'COMPLETED' && bookingStatus !== 'CANCELLED' && (
+                <button 
+                  type="button"
+                  onClick={() => setShowComplaintModal(true)}
+                  className="text-xs font-bold text-rose-600 hover:text-rose-700 underline focus:outline-none"
+                >
+                  Report an Issue / File Dispute
+                </button>
+              )}
+            </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               <div>
@@ -388,13 +399,6 @@ export const BookingTracking: React.FC = () => {
                       <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3 text-sm">
                         <div className="flex justify-between items-center font-bold text-slate-800">
                           <span>Your Ratings:</span>
-                          <button
-                            type="button"
-                            onClick={() => setIsEditing(true)}
-                            className="text-xs text-blue-600 hover:text-blue-800 font-bold underline"
-                          >
-                            Edit Review
-                          </button>
                         </div>
                         <div className="grid grid-cols-3 gap-2 text-xs font-semibold text-slate-700">
                           <div className="bg-white border border-slate-200/60 p-2.5 rounded-xl text-center">

@@ -26,7 +26,12 @@ interface PayoutRequest {
   createdAt: string;
 }
 
-export const FinanceTab: React.FC = () => {
+interface FinanceTabProps {
+  onSelectPayout?: (id: number) => void;
+  onSelectBooking?: (id: number) => void;
+}
+
+export const FinanceTab: React.FC<FinanceTabProps> = ({ onSelectPayout, onSelectBooking }) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [payouts, setPayouts] = useState<PayoutRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -160,7 +165,12 @@ export const FinanceTab: React.FC = () => {
             {payouts.map((p) => (
               <div key={p.id} className="p-3 border border-slate-100 rounded-xl bg-slate-50/50 flex justify-between items-center text-xs font-semibold">
                 <div className="space-y-1">
-                  <span className="font-bold text-slate-800 block">Payout ID #{p.id} • Provider #{p.providerId}</span>
+                  <span 
+                    onClick={() => onSelectPayout && onSelectPayout(p.id)}
+                    className={`font-bold text-slate-800 block ${onSelectPayout ? 'cursor-pointer hover:text-blue-650 hover:underline' : ''}`}
+                  >
+                    Payout ID #{p.id} • Provider #{p.providerId}
+                  </span>
                   <span className="text-slate-400 block font-mono text-[10px]">{p.bankDetails}</span>
                   <span className="text-[10px] text-slate-500 block">Requested: {new Date(p.createdAt).toLocaleDateString()}</span>
                 </div>
@@ -207,7 +217,16 @@ export const FinanceTab: React.FC = () => {
               <div key={t.id} className="p-3 border border-slate-100 rounded-xl bg-slate-50/50 flex justify-between items-center text-xs font-semibold">
                 <div className="space-y-0.5">
                   <span className="font-bold text-slate-800 block">Tx ID: {t.transactionId}</span>
-                  <span className="text-slate-400 block text-[10px]">Booking #{t.bookingId} • Cust #{t.customerId} → Prov #{t.providerId}</span>
+                  <span className="text-slate-400 block text-[10px]">
+                    Booking{' '}
+                    <span 
+                      onClick={() => onSelectBooking && onSelectBooking(t.bookingId)}
+                      className={`font-bold ${onSelectBooking ? 'cursor-pointer text-blue-600 hover:underline' : 'text-slate-650'}`}
+                    >
+                      #{t.bookingId}
+                    </span>
+                    {' '}• Cust #{t.customerId} → Prov #{t.providerId}
+                  </span>
                   <span className="text-[10px] text-slate-500 block">Settled: {new Date(t.createdAt).toLocaleString()}</span>
                 </div>
                 
@@ -238,7 +257,12 @@ export const FinanceTab: React.FC = () => {
             <div key={t.id} className="p-3 border border-rose-100 rounded-xl bg-rose-50/20 flex justify-between items-center text-xs font-semibold">
               <div className="space-y-0.5">
                 <span className="font-bold text-slate-800 block">Refund Trans ID: {t.transactionId}</span>
-                <span className="text-[10px] text-rose-600 block">Refund Issued for Booking #{t.bookingId}</span>
+                <span 
+                  onClick={() => onSelectBooking && onSelectBooking(t.bookingId)}
+                  className={`text-[10px] text-rose-600 block ${onSelectBooking ? 'cursor-pointer hover:underline font-bold' : ''}`}
+                >
+                  Refund Issued for Booking #{t.bookingId}
+                </span>
                 <span className="text-[10px] text-slate-400 block">Settled: {new Date(t.createdAt).toLocaleString()}</span>
               </div>
               <div className="text-right font-mono font-bold text-rose-600">

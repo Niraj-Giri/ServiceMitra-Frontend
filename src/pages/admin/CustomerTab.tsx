@@ -14,13 +14,17 @@ interface Customer {
   isActive: boolean;
   createdAt: string;
   rewardPoints?: number;
+  couponsDisabled?: boolean;
+  rewardsDisabled?: boolean;
+  bookingsLimited?: boolean;
 }
 
 interface CustomerTabProps {
   onRefreshStats: () => void;
+  onSelectCustomer?: (id: number) => void;
 }
 
-export const CustomerTab: React.FC<CustomerTabProps> = ({ onRefreshStats }) => {
+export const CustomerTab: React.FC<CustomerTabProps> = ({ onRefreshStats, onSelectCustomer }) => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -104,6 +108,32 @@ export const CustomerTab: React.FC<CustomerTabProps> = ({ onRefreshStats }) => {
       console.error('Failed to load details', err);
     }
     setDetailLoading(false);
+  };
+
+  const handleTogglePermission = async (field: 'couponsDisabled' | 'rewardsDisabled' | 'bookingsLimited', currentVal: boolean) => {
+    if (!selectedCustomer) return;
+    const reason = prompt('Enter change reason for auditing logs:');
+    if (reason === null || reason.trim() === '') {
+      alert('Action cancelled: Audit log reason is required.');
+      return;
+    }
+    try {
+      const payload = {
+        [field]: !currentVal,
+        reason
+      };
+      const res = await apiClient.put(`/admin/customers/${selectedCustomer.id}/permissions`, payload);
+      const updatedUser = res.data.data || res.data;
+      setSelectedCustomer({
+        ...selectedCustomer,
+        couponsDisabled: updatedUser.couponsDisabled,
+        rewardsDisabled: updatedUser.rewardsDisabled,
+        bookingsLimited: updatedUser.bookingsLimited
+      });
+      fetchCustomers();
+    } catch (err) {
+      alert('Failed to update customer trust permissions');
+    }
   };
 
   const handleAdjustPoints = async (e: React.FormEvent) => {
@@ -230,7 +260,7 @@ export const CustomerTab: React.FC<CustomerTabProps> = ({ onRefreshStats }) => {
                   </td>
                   <td className="px-6 py-4 text-right space-x-2 shrink-0">
                     <button
-                      onClick={() => loadCustomerDetails(c)}
+                      onClick={() => onSelectCustomer ? onSelectCustomer(c.id) : loadCustomerDetails(c)}
                       className="px-2.5 py-1 hover:bg-blue-50 text-slate-600 hover:text-blue-700 rounded-lg text-xs font-bold transition inline-flex items-center gap-1"
                     >
                       <Eye className="h-3.5 w-3.5" /> View Profile
@@ -331,6 +361,40 @@ export const CustomerTab: React.FC<CustomerTabProps> = ({ onRefreshStats }) => {
                       <p><span className="font-bold text-slate-500">Phone:</span> {selectedCustomer.phone}</p>
                       <p><span className="font-bold text-slate-500">Email:</span> {selectedCustomer.email || 'N/A'}</p>
                       <p><span className="font-bold text-slate-500">Status:</span> <span className={selectedCustomer.isActive ? 'text-emerald-600 font-bold' : 'text-rose-600 font-bold'}>{selectedCustomer.isActive ? 'Active' : 'Suspended'}</span></p>
+                    </div>
+
+                    {/* Customer Operations Trust Controls */}
+                    <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 space-y-3">
+                      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block border-b pb-1.5">Trust & Coupon Controls</span>
+                      <div className="space-y-2.5">
+                        <label className="flex items-center gap-2 font-semibold text-slate-700 cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={!!selectedCustomer.couponsDisabled} 
+                            onChange={() => handleTogglePermission('couponsDisabled', !!selectedCustomer.couponsDisabled)}
+                            className="rounded text-blue-600 focus:ring-blue-500 h-3.5 w-3.5"
+                          />
+                          <span>Disable Coupons</span>
+                        </label>
+                        <label className="flex items-center gap-2 font-semibold text-slate-700 cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={!!selectedCustomer.rewardsDisabled} 
+                            onChange={() => handleTogglePermission('rewardsDisabled', !!selectedCustomer.rewardsDisabled)}
+                            className="rounded text-blue-600 focus:ring-blue-500 h-3.5 w-3.5"
+                          />
+                          <span>Lock Reward Points</span>
+                        </label>
+                        <label className="flex items-center gap-2 font-semibold text-slate-700 cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={!!selectedCustomer.bookingsLimited} 
+                            onChange={() => handleTogglePermission('bookingsLimited', !!selectedCustomer.bookingsLimited)}
+                            className="rounded text-blue-600 focus:ring-blue-500 h-3.5 w-3.5"
+                          />
+                          <span>Limit Active Bookings</span>
+                        </label>
+                      </div>
                     </div>
 
                     {/* Reward point Adjuster */}

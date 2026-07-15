@@ -22,7 +22,12 @@ interface Review {
   };
 }
 
-export const ReviewsTab: React.FC = () => {
+interface ReviewsTabProps {
+  onSelectCustomer?: (id: number) => void;
+  onSelectProvider?: (id: number) => void;
+}
+
+export const ReviewsTab: React.FC<ReviewsTabProps> = ({ onSelectCustomer, onSelectProvider }) => {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -143,8 +148,24 @@ export const ReviewsTab: React.FC = () => {
               {reviews.map((r) => (
                 <tr key={r.id} className={`hover:bg-slate-50/20 ${r.isHidden ? 'opacity-60 bg-slate-50/50' : ''}`}>
                   <td className="px-6 py-4 font-mono font-bold text-slate-900">#{r.id}</td>
-                  <td className="px-6 py-4 text-slate-800">{r.customer?.name}</td>
-                  <td className="px-6 py-4 text-slate-800">{r.provider?.businessName}</td>
+                  <td className="px-6 py-4 text-slate-800">
+                    <div>{r.customer?.name}</div>
+                    <span 
+                      onClick={() => onSelectCustomer && onSelectCustomer(r.customer?.id)}
+                      className={`text-[10px] text-slate-400 font-bold mt-0.5 block ${onSelectCustomer ? 'cursor-pointer hover:underline hover:text-blue-600' : ''}`}
+                    >
+                      Cust ID: #{r.customer?.id}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-slate-800">
+                    <div>{r.provider?.businessName}</div>
+                    <span 
+                      onClick={() => onSelectProvider && onSelectProvider(r.provider?.id)}
+                      className={`text-[10px] text-slate-400 font-bold mt-0.5 block ${onSelectProvider ? 'cursor-pointer hover:underline hover:text-blue-600' : ''}`}
+                    >
+                      Prov ID: #{r.provider?.id}
+                    </span>
+                  </td>
                   <td className="px-6 py-4 font-bold text-amber-500">
                     <span className="flex items-center gap-0.5">{r.rating} <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500 shrink-0" /></span>
                   </td>

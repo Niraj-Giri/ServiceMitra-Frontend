@@ -28,13 +28,17 @@ interface Provider {
   certificatesUrls: string;
   acceptanceRate: number;
   commissionPercentage: number | null;
+  completionRate?: number;
+  cancellationRate?: number;
+  responseTimeMin?: number;
 }
 
 interface ProviderTabProps {
   onRefreshStats: () => void;
+  onSelectProvider?: (id: number) => void;
 }
 
-export const ProviderTab: React.FC<ProviderTabProps> = ({ onRefreshStats }) => {
+export const ProviderTab: React.FC<ProviderTabProps> = ({ onRefreshStats, onSelectProvider }) => {
   const [providers, setProviders] = useState<Provider[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -53,6 +57,18 @@ export const ProviderTab: React.FC<ProviderTabProps> = ({ onRefreshStats }) => {
   const [earnings, setEarnings] = useState<any[]>([]);
   const [incentives, setIncentives] = useState<any[]>([]);
   const [complaints, setComplaints] = useState<any[]>([]);
+  const [wallet, setWallet] = useState<any>(null);
+  const [strikes, setStrikes] = useState<any[]>([]);
+  const [selectedDetailTab, setSelectedDetailTab] = useState<string>('info');
+
+  // wallet adjustments states
+  const [walletAdjustAmt, setWalletAdjustAmt] = useState('');
+  const [walletAdjustType, setWalletAdjustType] = useState('CREDIT');
+  const [walletAdjustDesc, setWalletAdjustDesc] = useState('');
+
+  // strike form states
+  const [strikeReason, setStrikeReason] = useState('');
+  const [strikeNotes, setStrikeNotes] = useState('');
 
   // form states inside modal
   const [commissionVal, setCommissionVal] = useState('');
@@ -101,16 +117,20 @@ export const ProviderTab: React.FC<ProviderTabProps> = ({ onRefreshStats }) => {
     setAddressVal(prov.address);
     setDetailLoading(true);
     try {
-      const [resB, resE, resI, resC] = await Promise.all([
+      const [resB, resE, resI, resC, resW, resS] = await Promise.all([
         apiClient.get(`/admin/providers/${prov.id}/bookings`),
         apiClient.get(`/admin/providers/${prov.id}/earnings`),
         apiClient.get(`/admin/providers/${prov.id}/incentives`),
-        apiClient.get(`/admin/providers/${prov.id}/complaints`)
+        apiClient.get(`/admin/providers/${prov.id}/complaints`),
+        apiClient.get(`/admin/providers/${prov.id}/wallet`),
+        apiClient.get(`/admin/providers/${prov.id}/strikes`)
       ]);
       setBookings(resB.data);
       setEarnings(resE.data);
       setIncentives(resI.data);
       setComplaints(resC.data);
+      setWallet(resW.data);
+      setStrikes(resS.data || []);
     } catch (err) {
       console.error('Failed to load details', err);
     }
@@ -120,9 +140,15 @@ export const ProviderTab: React.FC<ProviderTabProps> = ({ onRefreshStats }) => {
   const handleUpdateCommission = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProvider) return;
+    const reason = prompt('Enter change reason for auditing logs:');
+    if (reason === null || reason.trim() === '') {
+      alert('Action cancelled: Audit log reason is required.');
+      return;
+    }
     try {
       await apiClient.put(`/admin/providers/${selectedProvider.id}/commission`, {
-        commissionPercentage: parseFloat(commissionVal)
+        commissionPercentage: parseFloat(commissionVal),
+        reason
       });
       alert('Commission rate updated successfully');
       loadProviderDetails({ ...selectedProvider, commissionPercentage: parseFloat(commissionVal) });
@@ -136,9 +162,15 @@ export const ProviderTab: React.FC<ProviderTabProps> = ({ onRefreshStats }) => {
   const handleUpdateArea = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProvider) return;
+    const reason = prompt('Enter change reason for auditing logs:');
+    if (reason === null || reason.trim() === '') {
+      alert('Action cancelled: Audit log reason is required.');
+      return;
+    }
     try {
       await apiClient.put(`/admin/providers/${selectedProvider.id}/assign-area`, {
-        address: addressVal
+        address: addressVal,
+        reason
       });
       alert('Service area assigned successfully');
       loadProviderDetails({ ...selectedProvider, address: addressVal });
@@ -167,22 +199,93 @@ export const ProviderTab: React.FC<ProviderTabProps> = ({ onRefreshStats }) => {
     }
   };
 
+  const handleAdjustWallet = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedProvider || !walletAdjustAmt.trim()) return;
+    const reason = prompt('Enter change reason for auditing logs:');
+    if (reason === null || reason.trim() === '') {
+      alert('Action cancelled: Audit log reason is required.');
+      return;
+    }
+    try {
+      const amt = parseFloat(walletAdjustAmt) * (walletAdjustType === 'DEBIT' ? -1 : 1);
+      const res = await apiClient.post(`/admin/providers/${selectedProvider.id}/wallet/adjust`, {
+        amount: amt,
+        type: walletAdjustType,
+        description: walletAdjustDesc || 'Manual adjustment',
+        reason
+      });
+      setWallet(res.data);
+      setWalletAdjustAmt('');
+      setWalletAdjustDesc('');
+      alert('Wallet balance adjusted successfully');
+      // reload earnings list
+      const resE = await apiClient.get(`/admin/providers/${selectedProvider.id}/earnings`);
+      setEarnings(resE.data);
+    } catch (err) {
+      alert('Failed to adjust wallet');
+    }
+  };
+
+  const handleAddStrike = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedProvider || !strikeReason.trim()) return;
+    try {
+      const res = await apiClient.post(`/admin/providers/${selectedProvider.id}/strikes`, {
+        reason: strikeReason,
+        notes: strikeNotes
+      });
+      setStrikes([res.data, ...strikes]);
+      setStrikeReason('');
+      setStrikeNotes('');
+      alert('Warning strike issued successfully');
+      loadProviderDetails(selectedProvider);
+      fetchProviders();
+      onRefreshStats();
+    } catch (err) {
+      alert('Failed to issue strike');
+    }
+  };
+
+  const handleUpdateProviderStatus = async (status: string) => {
+    if (!selectedProvider) return;
+    const reason = prompt('Enter reason for provider status update:');
+    if (reason === null || reason.trim() === '') {
+      alert('Action cancelled: Reason is required.');
+      return;
+    }
+    try {
+      await apiClient.put(`/admin/providers/${selectedProvider.id}/status`, {
+        status,
+        reason
+      });
+      alert('Provider status updated successfully');
+      loadProviderDetails({ ...selectedProvider, status });
+      fetchProviders();
+      onRefreshStats();
+    } catch (err) {
+      alert('Failed to update provider status');
+    }
+  };
+
   const executeAction = async () => {
     if (!confirmConfig) return;
     const { id, action } = confirmConfig;
     try {
       if (action === 'approve') {
-        await apiClient.put(`/admin/providers/${id}/approve`);
+        const reason = prompt('Enter approval reason details:') || 'KYC Documents approved';
+        await apiClient.put(`/admin/providers/${id}/status`, { status: 'VERIFIED', reason });
       } else if (action === 'reject') {
         const reason = prompt('Enter rejection reason details:');
         if (reason === null) return;
-        await apiClient.put(`/admin/providers/${id}/reject`, { reason });
+        await apiClient.put(`/admin/providers/${id}/status`, { status: 'REJECTED', reason });
       } else if (action === 'suspend') {
         const reason = prompt('Enter suspension reason details:');
         if (reason === null) return;
-        await apiClient.put(`/admin/providers/${id}/suspend`, { reason });
+        await apiClient.put(`/admin/providers/${id}/status`, { status: 'SUSPENDED', reason });
       } else if (action === 'activate') {
-        await apiClient.put(`/admin/providers/${id}/activate`);
+        const reason = prompt('Enter re-activation reason details:') || 'Account whitelisted by Admin';
+        await apiClient.put(`/admin/providers/${id}/status`, { status: 'VERIFIED', reason });
       }
       setConfirmConfig(null);
       fetchProviders();
@@ -302,7 +405,7 @@ export const ProviderTab: React.FC<ProviderTabProps> = ({ onRefreshStats }) => {
                   </td>
                   <td className="px-6 py-4 text-right space-x-2 shrink-0">
                     <button
-                      onClick={() => loadProviderDetails(p)}
+                      onClick={() => onSelectProvider ? onSelectProvider(p.id) : loadProviderDetails(p)}
                       className="px-2.5 py-1 hover:bg-blue-50 text-slate-600 hover:text-blue-700 rounded-lg text-xs font-bold transition inline-flex items-center gap-1"
                     >
                       <Eye className="h-3.5 w-3.5" /> View Profile
@@ -402,7 +505,14 @@ export const ProviderTab: React.FC<ProviderTabProps> = ({ onRefreshStats }) => {
             {/* Modal Header */}
             <div className="flex justify-between items-start border-b border-slate-100 pb-4">
               <div>
-                <h3 className="font-extrabold text-slate-900 text-lg">{selectedProvider.businessName}</h3>
+                <div className="flex items-center gap-3">
+                  <h3 className="font-extrabold text-slate-900 text-lg">{selectedProvider.businessName}</h3>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                    selectedProvider.status === 'APPROVED' || selectedProvider.status === 'VERIFIED' ? 'bg-emerald-50 text-emerald-700' :
+                    selectedProvider.status === 'PENDING_REVIEW' ? 'bg-amber-50 text-amber-700 animate-pulse' :
+                    selectedProvider.status === 'SUSPENDED' ? 'bg-rose-50 text-rose-700' : 'bg-slate-50 text-slate-700'
+                  }`}>{selectedProvider.status}</span>
+                </div>
                 <p className="text-xs text-slate-400 mt-1">Provider ID #{selectedProvider.id} • Category: {selectedProvider.serviceCategory} • Experience: {selectedProvider.experienceYears} Years</p>
               </div>
               <button 
@@ -413,196 +523,400 @@ export const ProviderTab: React.FC<ProviderTabProps> = ({ onRefreshStats }) => {
               </button>
             </div>
 
+            {/* Profile Detail Navigation Tabs */}
+            <div className="flex border-b border-slate-100 text-xs font-bold text-slate-400 mt-2 bg-slate-50/50 p-1 rounded-lg">
+              {[
+                { id: 'info', label: 'Profile Details' },
+                { id: 'kyc', label: 'KYC & Documents' },
+                { id: 'wallet', label: 'Wallet & Ledger' },
+                { id: 'strikes', label: 'Rule Strikes' },
+                { id: 'bookings', label: 'Bookings' },
+                { id: 'complaints', label: 'Disputes' }
+              ].map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => setSelectedDetailTab(t.id)}
+                  className={`flex-1 py-2 text-center rounded-md transition ${selectedDetailTab === t.id ? 'bg-white text-blue-600 shadow-xs' : 'hover:text-slate-700'}`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
             {/* Modal Body */}
             <div className="flex-1 overflow-y-auto py-6 space-y-6 text-slate-700 text-xs">
               {detailLoading ? (
                 <div className="text-center py-20 text-slate-400">Loading details...</div>
               ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  
-                  {/* Left Side: General Info & Document Viewer */}
-                  <div className="space-y-6 lg:col-span-1">
-                    <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 space-y-3">
-                      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block border-b pb-1.5">Owner Contact</span>
-                      <p><span className="font-bold text-slate-500">Contact Person:</span> {selectedProvider.name}</p>
-                      <p><span className="font-bold text-slate-500">Phone:</span> {selectedProvider.phone}</p>
-                      <p><span className="font-bold text-slate-500">Email:</span> {selectedProvider.email || 'N/A'}</p>
-                      <p><span className="font-bold text-slate-500">Skills:</span> {selectedProvider.skills || 'N/A'}</p>
-                      <p><span className="font-bold text-slate-500">Bank Details:</span> {selectedProvider.bankDetails || 'N/A'}</p>
-                    </div>
+                <>
+                  {/* TAB 1: PROFILE DETAILS & HEALTH METRICS */}
+                  {selectedDetailTab === 'info' && (
+                    <div className="space-y-6">
+                      {/* Operational Performance Health Indicators */}
+                      <div className="grid grid-cols-4 gap-4">
+                        <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl">
+                          <span className="text-[10px] text-slate-400 font-extrabold uppercase">Completion Rate</span>
+                          <p className="text-xl font-bold mt-1 text-slate-800">{selectedProvider.completionRate ?? 100}%</p>
+                        </div>
+                        <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl">
+                          <span className="text-[10px] text-slate-400 font-extrabold uppercase">Cancellation Rate</span>
+                          <p className="text-xl font-bold mt-1 text-slate-800">{selectedProvider.cancellationRate ?? 0}%</p>
+                        </div>
+                        <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl">
+                          <span className="text-[10px] text-slate-400 font-extrabold uppercase">Acceptance Rate</span>
+                          <p className="text-xl font-bold mt-1 text-slate-800">{selectedProvider.acceptanceRate ?? 100}%</p>
+                        </div>
+                        <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl">
+                          <span className="text-[10px] text-slate-400 font-extrabold uppercase">Response Time</span>
+                          <p className="text-xl font-bold mt-1 text-slate-800">{selectedProvider.responseTimeMin ?? 15} min</p>
+                        </div>
+                      </div>
 
-                    {/* KYC Document attachments links */}
-                    <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 space-y-3">
-                      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block border-b pb-1.5">KYC Documents</span>
-                      <div className="space-y-2">
-                        {selectedProvider.citizenFileUrl ? (
-                          <a href={selectedProvider.citizenFileUrl} target="_blank" rel="noreferrer" className="flex items-center justify-between p-2 bg-white rounded-xl border border-slate-200 hover:bg-slate-100 font-bold transition">
-                            <span className="flex items-center gap-1.5"><FileText className="h-4 w-4 text-blue-600" /> Citizenship Card</span>
-                            <Eye className="h-3.5 w-3.5 text-slate-400" />
-                          </a>
-                        ) : <div className="text-slate-400 italic">No Citizenship card uploaded</div>}
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 space-y-3">
+                          <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block border-b pb-1.5">Owner Contact Info</span>
+                          <p><span className="font-bold text-slate-500">Contact Person:</span> {selectedProvider.name}</p>
+                          <p><span className="font-bold text-slate-500">Phone:</span> {selectedProvider.phone}</p>
+                          <p><span className="font-bold text-slate-500">Email:</span> {selectedProvider.email || 'N/A'}</p>
+                          <p><span className="font-bold text-slate-500">Skills:</span> {selectedProvider.skills || 'N/A'}</p>
+                          <p><span className="font-bold text-slate-500">Bank Details:</span> {selectedProvider.bankDetails || 'N/A'}</p>
+                        </div>
 
-                        {selectedProvider.panFileUrl ? (
-                          <a href={selectedProvider.panFileUrl} target="_blank" rel="noreferrer" className="flex items-center justify-between p-2 bg-white rounded-xl border border-slate-200 hover:bg-slate-100 font-bold transition">
-                            <span className="flex items-center gap-1.5"><FileText className="h-4 w-4 text-indigo-600" /> PAN Document</span>
-                            <Eye className="h-3.5 w-3.5 text-slate-400" />
-                          </a>
-                        ) : <div className="text-slate-400 italic">No PAN document uploaded</div>}
+                        {/* Commission & Area configurations */}
+                        <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 space-y-4">
+                          <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block border-b pb-1.5">Platform Rules Config</span>
+                          
+                          <form onSubmit={handleUpdateCommission} className="space-y-2">
+                            <label className="block text-slate-500 font-semibold">Base Commission Rate (%)</label>
+                            <div className="flex gap-2">
+                              <input 
+                                type="number"
+                                required
+                                value={commissionVal}
+                                onChange={e => setCommissionVal(e.target.value)}
+                                className="flex-1 px-3 py-1.5 border border-slate-200 bg-white rounded-lg text-center font-bold"
+                              />
+                              <button type="submit" className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-3 py-1.5 rounded-lg">Save</button>
+                            </div>
+                          </form>
+
+                          <form onSubmit={handleUpdateArea} className="space-y-2">
+                            <label className="block text-slate-500 font-semibold">Service Coverage Address</label>
+                            <div className="flex gap-2">
+                              <input 
+                                type="text"
+                                required
+                                value={addressVal}
+                                onChange={e => setAddressVal(e.target.value)}
+                                className="flex-1 px-3 py-1.5 border border-slate-200 bg-white rounded-lg"
+                              />
+                              <button type="submit" className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-3 py-1.5 rounded-lg">Save</button>
+                            </div>
+                          </form>
+                        </div>
                       </div>
                     </div>
+                  )}
 
-                    {/* Commission & Area configurations */}
-                    <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 space-y-4">
-                      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block border-b pb-1.5">Platform Rules Config</span>
-                      
-                      <form onSubmit={handleUpdateCommission} className="space-y-2">
-                        <label className="block text-slate-500 font-semibold">Base Commission Rate (%)</label>
-                        <div className="flex gap-2">
-                          <input 
-                            type="number"
-                            required
-                            value={commissionVal}
-                            onChange={e => setCommissionVal(e.target.value)}
-                            className="flex-1 px-3 py-1.5 border border-slate-200 bg-white rounded-lg text-center font-bold"
-                          />
-                          <button type="submit" className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-3 py-1.5 rounded-lg">Save</button>
-                        </div>
-                      </form>
+                  {/* TAB 2: KYC & DOCUMENTS VERIFICATION */}
+                  {selectedDetailTab === 'kyc' && (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 space-y-4">
+                        <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block border-b pb-1.5">KYC Documents</span>
+                        <div className="space-y-3">
+                          {selectedProvider.citizenFileUrl ? (
+                            <a href={selectedProvider.citizenFileUrl} target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-200 hover:bg-slate-100 font-bold transition">
+                              <span className="flex items-center gap-1.5"><FileText className="h-4.5 w-4.5 text-blue-600" /> Citizenship Card</span>
+                              <Eye className="h-4 w-4 text-slate-400" />
+                            </a>
+                          ) : <div className="text-slate-400 italic">No Citizenship card uploaded</div>}
 
-                      <form onSubmit={handleUpdateArea} className="space-y-2">
-                        <label className="block text-slate-500 font-semibold">Service Coverage Address</label>
-                        <div className="flex gap-2">
-                          <input 
-                            type="text"
-                            required
-                            value={addressVal}
-                            onChange={e => setAddressVal(e.target.value)}
-                            className="flex-1 px-3 py-1.5 border border-slate-200 bg-white rounded-lg"
-                          />
-                          <button type="submit" className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-3 py-1.5 rounded-lg">Save</button>
+                          {selectedProvider.panFileUrl ? (
+                            <a href={selectedProvider.panFileUrl} target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-200 hover:bg-slate-100 font-bold transition">
+                              <span className="flex items-center gap-1.5"><FileText className="h-4.5 w-4.5 text-indigo-600" /> PAN Document</span>
+                              <Eye className="h-4 w-4 text-slate-400" />
+                            </a>
+                          ) : <div className="text-slate-400 italic">No PAN document uploaded</div>}
                         </div>
-                      </form>
+                      </div>
+
+                      <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 space-y-4">
+                        <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block border-b pb-1.5">Account Status & KYC Actions</span>
+                        <div className="space-y-4">
+                          <p className="text-slate-500">Perform verified whitelisting, request re-upload of citizenship cards, or suspend account access rules.</p>
+                          <div className="flex flex-wrap gap-2 pt-2">
+                            <button 
+                              onClick={() => handleUpdateProviderStatus('VERIFIED')} 
+                              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition"
+                            >
+                              Verify & Whitelist
+                            </button>
+                            <button 
+                              onClick={() => handleUpdateProviderStatus('NEED_REUPLOAD')} 
+                              className="px-4 py-2 bg-amber-50 hover:bg-amber-600 text-white rounded-xl font-bold transition"
+                            >
+                              Request Doc Reupload
+                            </button>
+                            <button 
+                              onClick={() => handleUpdateProviderStatus('REJECTED')} 
+                              className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl font-bold transition"
+                            >
+                              Reject Registry
+                            </button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  )}
 
-                  {/* Right Side: Jobs, Earnings, Cash Incentives, Complaints */}
-                  <div className="lg:col-span-2 space-y-6">
-                    
-                    {/* Cash Incentives / Milestones awarder */}
-                    <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 space-y-3">
-                      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block border-b pb-1.5">Award Performance Incentive / Cash Bonus</span>
-                      <form onSubmit={handleAwardBonus} className="space-y-3">
-                        <div className="grid grid-cols-2 gap-3">
+                  {/* TAB 3: FINANCIAL LEDGER & WALLET */}
+                  {selectedDetailTab === 'wallet' && (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <div className="space-y-6">
+                        <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 flex items-center justify-between">
                           <div>
-                            <label className="block text-slate-500 font-semibold mb-1">Amount (Rs.)</label>
-                            <input
-                              type="number"
-                              required
-                              min={1}
-                              placeholder="e.g. 500"
-                              value={incentiveAmt}
-                              onChange={e => setIncentiveAmt(e.target.value)}
-                              className="w-full px-3 py-2 border border-slate-250 bg-white rounded-xl font-bold text-slate-900"
+                            <span className="text-[10px] text-slate-400 font-extrabold uppercase">Wallet Ledger Balance</span>
+                            <p className="text-2xl font-black text-slate-900 mt-1">Rs. {wallet?.balance ?? 0.0}</p>
+                          </div>
+                          <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-bold font-mono">
+                            {wallet?.currency ?? 'NPR'}
+                          </span>
+                        </div>
+
+                        {/* Adjust balance form */}
+                        <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 space-y-3">
+                          <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block border-b pb-1.5">Debit/Credit Manual Adjustment</span>
+                          <form onSubmit={handleAdjustWallet} className="space-y-3">
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-slate-500 font-semibold mb-1">Adjustment Type</label>
+                                <select 
+                                  value={walletAdjustType} 
+                                  onChange={e => setWalletAdjustType(e.target.value)}
+                                  className="w-full px-3 py-2 border border-slate-200 bg-white rounded-xl font-bold"
+                                >
+                                  <option value="CREDIT">Credit (Add balance)</option>
+                                  <option value="DEBIT">Debit (Subtract balance)</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-slate-500 font-semibold mb-1">Amount (Rs.)</label>
+                                <input 
+                                  type="number" 
+                                  required 
+                                  min={0.01} 
+                                  step={0.01}
+                                  placeholder="0.00"
+                                  value={walletAdjustAmt}
+                                  onChange={e => setWalletAdjustAmt(e.target.value)}
+                                  className="w-full px-3 py-2 border border-slate-200 bg-white rounded-xl font-bold"
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-slate-500 font-semibold mb-1">Audit description</label>
+                              <input 
+                                type="text" 
+                                required 
+                                placeholder="Notes for provider..."
+                                value={walletAdjustDesc}
+                                onChange={e => setWalletAdjustDesc(e.target.value)}
+                                className="w-full px-3 py-2 border border-slate-200 bg-white rounded-xl"
+                              />
+                            </div>
+                            <button 
+                              type="submit" 
+                              className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-xl transition"
+                            >
+                              Post Manual Adjustment
+                            </button>
+                          </form>
+                        </div>
+                      </div>
+
+                      {/* Earnings/Transactions list */}
+                      <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100">
+                        <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block border-b pb-1.5 mb-3">Earnings & Payments Ledger</span>
+                        <div className="max-h-[300px] overflow-y-auto space-y-2.5">
+                          {earnings.map((e, idx) => (
+                            <div key={idx} className="p-3 border border-slate-150 rounded-xl bg-white text-xs font-semibold flex justify-between items-center">
+                              <div>
+                                <span className="font-bold text-slate-800">Transaction ID: {e.transactionId}</span>
+                                <span className="text-[10px] text-slate-400 block mt-0.5">Booking #{e.bookingId} • Gross: Rs. {e.amount}</span>
+                              </div>
+                              <div className="text-right">
+                                <span className="font-bold text-emerald-600 block">Rs. {e.providerEarnings}</span>
+                                <span className="text-[10px] text-rose-500 block">Fee: Rs. {e.commission}</span>
+                              </div>
+                            </div>
+                          ))}
+                          {earnings.length === 0 && (
+                            <p className="text-slate-400 italic text-center py-4">No earnings ledger entries found.</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB 4: RULE STRIKES & SANCTIONS */}
+                  {selectedDetailTab === 'strikes' && (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 space-y-3">
+                        <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block border-b pb-1.5">Rule Strikes Log</span>
+                        <div className="max-h-[300px] overflow-y-auto space-y-3">
+                          {strikes.map((s, idx) => (
+                            <div key={idx} className="p-3 border border-slate-200 rounded-xl bg-white space-y-1">
+                              <div className="flex justify-between items-center text-[10px]">
+                                <span className="bg-rose-50 text-rose-700 px-2 py-0.5 rounded font-black">STRIKE #{s.strikeNumber}</span>
+                                <span className="text-slate-400">{new Date(s.createdAt).toLocaleDateString()}</span>
+                              </div>
+                              <p className="font-bold text-slate-800 text-xs mt-1">{s.reason}</p>
+                              {s.internalNotes && <p className="text-[10px] text-slate-500">Internal notes: {s.internalNotes}</p>}
+                              <p className="text-[10px] text-slate-400 mt-1">Issued by: {s.createdBy}</p>
+                            </div>
+                          ))}
+                          {strikes.length === 0 && (
+                            <p className="text-slate-400 italic text-center py-6">No rule violation strikes active for this provider.</p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 space-y-3">
+                        <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block border-b pb-1.5">Issue Warning Strike</span>
+                        <form onSubmit={handleAddStrike} className="space-y-3">
+                          <div>
+                            <label className="block text-slate-500 font-semibold mb-1">Violation Reason</label>
+                            <input 
+                              type="text" 
+                              required 
+                              placeholder="e.g. No-show without customer consent"
+                              value={strikeReason}
+                              onChange={e => setStrikeReason(e.target.value)}
+                              className="w-full px-3 py-2 border border-slate-200 bg-white rounded-xl"
                             />
                           </div>
                           <div>
-                            <label className="block text-slate-500 font-semibold mb-1">Reason Code</label>
-                            <select
-                              value={incentiveReason}
-                              onChange={e => setIncentiveReason(e.target.value)}
-                              className="w-full px-3 py-2 border border-slate-250 bg-white rounded-xl font-bold"
-                            >
-                              <option value="SPECIAL_CAMPAIGN">Special Campaign</option>
-                              <option value="GOOD_BEHAVIOR_BONUS">Good Behavior Bonus</option>
-                              <option value="COMPENSATION">Compensation</option>
-                            </select>
+                            <label className="block text-slate-500 font-semibold mb-1">Internal Notes</label>
+                            <textarea 
+                              placeholder="Describe context details..."
+                              value={strikeNotes}
+                              onChange={e => setStrikeNotes(e.target.value)}
+                              className="w-full px-3 py-2 border border-slate-200 bg-white rounded-xl h-20"
+                            />
                           </div>
+                          <button 
+                            type="submit" 
+                            className="bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 px-4 rounded-xl transition inline-flex items-center gap-1.5"
+                          >
+                            <ShieldAlert className="h-4 w-4" /> Issue Rule Strike
+                          </button>
+                        </form>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB 5: ASSIGNED BOOKINGS & INCENTIVES */}
+                  {selectedDetailTab === 'bookings' && (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100">
+                        <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block border-b pb-1.5 mb-3">Bookings Assigned</span>
+                        <div className="max-h-[300px] overflow-y-auto space-y-2.5">
+                          {bookings.map((b) => (
+                            <div key={b.id} className="p-3 border border-slate-150 rounded-xl bg-white flex justify-between items-start text-xs font-semibold">
+                              <div>
+                                <span className="font-bold text-slate-800">Booking #{b.id} - {b.serviceName}</span>
+                                <span className="text-[10px] text-slate-400 block mt-0.5">Time: {new Date(b.scheduledAt).toLocaleString()}</span>
+                              </div>
+                              <div className="text-right">
+                                <span className="font-bold block text-slate-800">Rs. {b.totalBill}</span>
+                                <span className="text-[10px] text-slate-500 uppercase block mt-0.5">{b.status}</span>
+                              </div>
+                            </div>
+                          ))}
+                          {bookings.length === 0 && (
+                            <p className="text-slate-400 italic text-center py-6">No bookings assigned yet.</p>
+                          )}
                         </div>
-                        <div>
-                          <label className="block text-slate-500 font-semibold mb-1">Detailed Description</label>
-                          <input
-                            type="text"
-                            required
-                            placeholder="Reason details for logs..."
-                            value={incentiveDesc}
-                            onChange={e => setIncentiveDesc(e.target.value)}
-                            className="w-full px-3 py-2 border border-slate-250 bg-white rounded-xl"
-                          />
+                      </div>
+
+                      {/* Cash incentives */}
+                      <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 space-y-4">
+                        <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block border-b pb-1.5">Award Performance Incentive</span>
+                        <form onSubmit={handleAwardBonus} className="space-y-3">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-slate-500 font-semibold mb-1">Amount (Rs.)</label>
+                              <input
+                                type="number"
+                                required
+                                min={1}
+                                placeholder="e.g. 500"
+                                value={incentiveAmt}
+                                onChange={e => setIncentiveAmt(e.target.value)}
+                                className="w-full px-3 py-2 border border-slate-200 bg-white rounded-xl font-bold"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-slate-500 font-semibold mb-1">Reason Code</label>
+                              <select
+                                value={incentiveReason}
+                                onChange={e => setIncentiveReason(e.target.value)}
+                                className="w-full px-3 py-2 border border-slate-200 bg-white rounded-xl font-bold"
+                              >
+                                <option value="SPECIAL_CAMPAIGN">Special Campaign</option>
+                                <option value="GOOD_BEHAVIOR_BONUS">Good Behavior Bonus</option>
+                                <option value="COMPENSATION">Compensation</option>
+                              </select>
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-slate-500 font-semibold mb-1">Detailed Description</label>
+                            <input
+                              type="text"
+                              required
+                              placeholder="Reason details for logs..."
+                              value={incentiveDesc}
+                              onChange={e => setIncentiveDesc(e.target.value)}
+                              className="w-full px-3 py-2 border border-slate-200 bg-white rounded-xl"
+                            />
+                          </div>
+                          <button
+                            type="submit"
+                            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-xl transition inline-flex items-center gap-1.5"
+                          >
+                            <DollarSign className="h-4 w-4" /> Issue Cash Bonus
+                          </button>
+                        </form>
+
+                        {/* Incentives history */}
+                        <div className="max-h-36 overflow-y-auto space-y-2 pt-2 border-t border-slate-200 mt-4">
+                          <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-2">Award History</h4>
+                          {incentives.map((i, idx) => (
+                            <div key={idx} className="flex justify-between items-center text-[10px] pb-1 border-b border-slate-100 last:border-0">
+                              <div>
+                                <span className="font-bold text-slate-700 block">{i.reason} • {i.description}</span>
+                                <span className="text-slate-400 block">{new Date(i.createdAt).toLocaleDateString()}</span>
+                              </div>
+                              <span className="font-mono font-bold text-emerald-600 shrink-0">Rs. {i.amount} ({i.status})</span>
+                            </div>
+                          ))}
+                          {incentives.length === 0 && (
+                            <p className="text-slate-400 italic text-center py-2 text-[10px]">No incentives awarded yet.</p>
+                          )}
                         </div>
-                        <button
-                          type="submit"
-                          className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-xl transition inline-flex items-center gap-1.5"
-                        >
-                          <DollarSign className="h-4 w-4" /> Issue Performance Bonus
-                        </button>
-                      </form>
-
-                      {/* Incentives history */}
-                      <div className="max-h-36 overflow-y-auto space-y-2 pt-2 border-t border-slate-100">
-                        {incentives.map((i, idx) => (
-                          <div key={idx} className="flex justify-between items-center text-[10px] pb-1 border-b border-slate-100 last:border-0">
-                            <div>
-                              <span className="font-bold text-slate-700 block">{i.reason} • {i.description}</span>
-                              <span className="text-slate-400 block">{new Date(i.createdAt).toLocaleDateString()}</span>
-                            </div>
-                            <span className="font-mono font-bold text-green-600 shrink-0">Rs. {i.amount} ({i.status})</span>
-                          </div>
-                        ))}
                       </div>
                     </div>
+                  )}
 
-                    {/* Jobs & Active Bookings */}
-                    <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
-                      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block border-b pb-1.5 mb-3">Bookings Assigned</span>
-                      <div className="max-h-48 overflow-y-auto space-y-2.5">
-                        {bookings.map((b) => (
-                          <div key={b.id} className="p-3 border border-slate-100 rounded-xl bg-white flex justify-between items-start text-xs font-semibold">
-                            <div>
-                              <span className="font-bold text-slate-800">Booking #{b.id} - {b.serviceName}</span>
-                              <span className="text-[10px] text-slate-400 block mt-0.5">Time: {new Date(b.scheduledAt).toLocaleString()}</span>
-                            </div>
-                            <div className="text-right">
-                              <span className="font-bold block text-slate-800">Rs. {b.totalBill}</span>
-                              <span className="text-[10px] text-slate-500 uppercase block mt-0.5">{b.status}</span>
-                            </div>
-                          </div>
-                        ))}
-                        {bookings.length === 0 && (
-                          <p className="text-slate-400 italic text-center py-6">No bookings assigned yet.</p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Earnings Summary History */}
-                    <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
-                      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block border-b pb-1.5 mb-3">Earnings & Payments Ledger</span>
-                      <div className="max-h-40 overflow-y-auto space-y-2.5">
-                        {earnings.map((e) => (
-                          <div key={e.id} className="p-3 border border-slate-100 rounded-xl bg-white text-xs font-semibold flex justify-between items-center">
-                            <div>
-                              <span className="font-bold text-slate-800">Transaction ID: {e.transactionId}</span>
-                              <span className="text-[10px] text-slate-400 block mt-0.5">Booking #{e.bookingId} • Gross: Rs. {e.amount}</span>
-                            </div>
-                            <div className="text-right">
-                              <span className="font-bold text-emerald-600 block">Rs. {e.providerEarnings}</span>
-                              <span className="text-[10px] text-rose-500 block">Fee: Rs. {e.commission}</span>
-                            </div>
-                          </div>
-                        ))}
-                        {earnings.length === 0 && (
-                          <p className="text-slate-400 italic text-center py-4">No earnings ledger entries found.</p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Complaints logged against this provider */}
-                    <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                  {/* TAB 6: DISPUTES & COMPLAINTS */}
+                  {selectedDetailTab === 'complaints' && (
+                    <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100">
                       <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block border-b pb-1.5 mb-3">Complaints Filed Against Provider</span>
-                      <div className="max-h-40 overflow-y-auto space-y-2.5">
+                      <div className="max-h-[300px] overflow-y-auto space-y-2.5">
                         {complaints.map((c) => (
-                          <div key={c.id} className="p-3 border border-slate-100 rounded-xl bg-white text-xs font-semibold flex justify-between items-center">
+                          <div key={c.id} className="p-3 border border-slate-150 rounded-xl bg-white text-xs font-semibold flex justify-between items-center">
                             <div>
-                              <span className="font-bold text-slate-800">#{c.id} - {c.subject}</span>
+                              <span className="font-bold text-slate-800">Dispute #{c.id} - {c.subject}</span>
                               <span className="text-[10px] text-slate-400 block mt-0.5">{c.description}</span>
                             </div>
                             <span className="text-[10px] uppercase font-bold text-rose-600">{c.status}</span>
@@ -613,9 +927,8 @@ export const ProviderTab: React.FC<ProviderTabProps> = ({ onRefreshStats }) => {
                         )}
                       </div>
                     </div>
-
-                  </div>
-                </div>
+                  )}
+                </>
               )}
             </div>
 

@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   Users, Wrench, ShieldCheck, ClipboardList, 
-  DollarSign, AlertTriangle, Activity, Clock
+  DollarSign, AlertTriangle, Activity, Clock, Settings
 } from 'lucide-react';
 import { 
   ResponsiveContainer, AreaChart, Area, BarChart, Bar, 
@@ -23,41 +23,81 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   auditLogs,
   onNavigateTab
 }) => {
-  const cards = [
-    { label: 'Today\'s Bookings', val: analytics?.todayBookings ?? 0, icon: Clock, color: 'bg-blue-50 text-blue-600', border: 'border-blue-100' },
-    { label: 'Active Bookings', val: analytics?.activeBookings ?? 0, icon: ClipboardList, color: 'bg-indigo-50 text-indigo-600', border: 'border-indigo-100' },
-    { label: 'Completed Bookings', val: analytics?.completedBookings ?? 0, icon: ClipboardList, color: 'bg-emerald-50 text-emerald-600', border: 'border-emerald-100' },
-    { label: 'Cancelled Bookings', val: analytics?.cancelledBookings ?? 0, icon: AlertTriangle, color: 'bg-rose-50 text-rose-600', border: 'border-rose-100' },
-    { label: 'Total Customers', val: analytics?.totalCustomers ?? 0, icon: Users, color: 'bg-slate-50 text-slate-600', border: 'border-slate-150' },
-    { label: 'Total Providers', val: analytics?.totalProviders ?? 0, icon: Wrench, color: 'bg-slate-50 text-slate-600', border: 'border-slate-150' },
-    { label: 'Pending KYC Review', val: analytics?.pendingProviderReviews ?? 0, icon: ShieldCheck, color: 'bg-amber-50 text-amber-600', border: 'border-amber-100', clickTab: 'providers' },
-    { label: 'Open Complaints', val: analytics?.pendingComplaints ?? 0, icon: AlertTriangle, color: 'bg-rose-50 text-rose-600', border: 'border-rose-150', clickTab: 'complaints' },
+  const opsCards = [
+    { label: 'Pending KYC Verifications', val: analytics?.pendingProviderReviews ?? 0, icon: Wrench, color: 'bg-amber-50 text-amber-600', border: 'border-amber-100', clickTab: 'providers' },
+    { label: 'Pending Complaints', val: analytics?.pendingComplaints ?? 0, icon: AlertTriangle, color: 'bg-rose-50 text-rose-600', border: 'border-rose-100', clickTab: 'complaints' },
+    { label: 'Pending Refund Requests', val: analytics?.pendingRefundRequests ?? 0, icon: DollarSign, color: 'bg-yellow-50 text-yellow-600', border: 'border-yellow-100', clickTab: 'finance' },
+    { label: 'Pending Payout Requests', val: analytics?.pendingPayoutRequests ?? 0, icon: DollarSign, color: 'bg-blue-50 text-blue-600', border: 'border-blue-100', clickTab: 'finance' },
+    { label: 'Bookings Without Provider', val: analytics?.bookingsWithoutProvider ?? 0, icon: ClipboardList, color: 'bg-indigo-50 text-indigo-600', border: 'border-indigo-100', clickTab: 'bookings' },
+    { label: 'Emergency Bookings', val: analytics?.emergencyBookings ?? 0, icon: AlertTriangle, color: 'bg-red-50 text-red-600', border: 'border-red-100', clickTab: 'bookings' },
+    { label: 'High Priority Complaints', val: analytics?.highPriorityComplaints ?? 0, icon: AlertTriangle, color: 'bg-red-50 text-red-600', border: 'border-red-100', clickTab: 'complaints' },
+    { label: 'Suspended Providers Awaiting Review', val: analytics?.suspendedProvidersAwaitingReview ?? 0, icon: Wrench, color: 'bg-orange-50 text-orange-600', border: 'border-orange-100', clickTab: 'providers' },
+    { label: 'Providers with High Complaints', val: analytics?.providersWithHighComplaintRate ?? 0, icon: AlertTriangle, color: 'bg-rose-50 text-rose-600', border: 'border-rose-100', clickTab: 'providers' },
+    { label: 'Customers with Fraud Risk', val: analytics?.customersWithFraudRisk ?? 0, icon: Users, color: 'bg-purple-50 text-purple-600', border: 'border-purple-100', clickTab: 'customers' },
+    { label: 'Failed Payments', val: analytics?.failedPayments ?? 0, icon: DollarSign, color: 'bg-red-50 text-red-600', border: 'border-red-100', clickTab: 'finance' },
+    { label: 'Expired KYC', val: analytics?.expiredKYC ?? 0, icon: ShieldCheck, color: 'bg-gray-50 text-gray-600', border: 'border-gray-100', clickTab: 'providers' },
+    { label: 'Services Awaiting Approval', val: analytics?.servicesAwaitingApproval ?? 0, icon: Settings, color: 'bg-teal-50 text-teal-600', border: 'border-teal-100', clickTab: 'services' },
+    { label: 'Low Supply Categories', val: analytics?.lowSupplyAreas ?? 0, icon: Wrench, color: 'bg-sky-50 text-sky-600', border: 'border-sky-100', clickTab: 'services' }
+  ];
+
+  const statsCards = [
+    { label: 'Today\'s Bookings', val: analytics?.todayBookings ?? 0, icon: Clock, color: 'bg-slate-50 text-slate-600', border: 'border-slate-100' },
+    { label: 'Active Bookings', val: analytics?.activeBookings ?? 0, icon: ClipboardList, color: 'bg-slate-50 text-slate-600', border: 'border-slate-100' },
+    { label: 'Completed Bookings', val: analytics?.completedBookings ?? 0, icon: ClipboardList, color: 'bg-slate-50 text-slate-600', border: 'border-slate-100' },
     { label: 'Today\'s Platform Comm.', val: `Rs. ${analytics?.todayRevenue ?? 0}`, icon: DollarSign, color: 'bg-emerald-50 text-emerald-600', border: 'border-emerald-100' },
     { label: 'Monthly Platform Comm.', val: `Rs. ${analytics?.totalRevenue ?? 0}`, icon: DollarSign, color: 'bg-emerald-50 text-emerald-600', border: 'border-emerald-100' }
   ];
 
   return (
     <div className="space-y-8 animate-fade-in">
-      {/* Analytics Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
-        {cards.map((card, idx) => {
-          const Icon = card.icon;
-          return (
-            <div 
-              key={idx} 
-              onClick={() => card.clickTab && onNavigateTab(card.clickTab)}
-              className={`bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex flex-col justify-between h-32 transition ${card.clickTab ? 'cursor-pointer hover:border-blue-500 hover:shadow-sm' : ''}`}
-            >
-              <div className="flex justify-between items-start">
-                <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">{card.label}</span>
-                <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${card.color}`}>
-                  <Icon className="h-4.5 w-4.5" />
+      {/* Actionable Operations Alert Center */}
+      <div>
+        <h3 className="font-extrabold text-slate-900 mb-4 text-xs uppercase tracking-wider">Operations Control Center (Action Queues)</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-4">
+          {opsCards.map((card, idx) => {
+            const Icon = card.icon;
+            const hasAlert = card.val > 0;
+            return (
+              <div 
+                key={idx} 
+                onClick={() => card.clickTab && onNavigateTab(card.clickTab)}
+                className={`bg-white rounded-xl p-4 border ${hasAlert ? `${card.border} ring-2 ring-offset-0 ring-${card.color.split(' ')[1]}` : 'border-slate-200 opacity-60'} shadow-xs flex flex-col justify-between h-28 transition cursor-pointer hover:border-blue-500 hover:shadow-sm`}
+              >
+                <div className="flex justify-between items-start">
+                  <span className="text-[9px] text-slate-400 font-extrabold uppercase tracking-tight leading-tight">{card.label}</span>
+                  <div className={`h-7 w-7 rounded-lg flex items-center justify-center ${card.color}`}>
+                    <Icon className="h-4 w-4" />
+                  </div>
                 </div>
+                <h3 className={`text-xl font-bold mt-2 ${hasAlert ? 'text-slate-900' : 'text-slate-500'}`}>{card.val}</h3>
               </div>
-              <h3 className="text-2xl font-bold mt-2 text-slate-900">{card.val}</h3>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Main Stats Cards Grid */}
+      <div>
+        <h3 className="font-extrabold text-slate-900 mb-4 text-xs uppercase tracking-wider">General Platform Performance</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
+          {statsCards.map((card, idx) => {
+            const Icon = card.icon;
+            return (
+              <div 
+                key={idx} 
+                className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex flex-col justify-between h-32"
+              >
+                <div className="flex justify-between items-start">
+                  <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">{card.label}</span>
+                  <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${card.color}`}>
+                    <Icon className="h-4.5 w-4.5" />
+                  </div>
+                </div>
+                <h3 className="text-2xl font-bold mt-2 text-slate-900">{card.val}</h3>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Quick Actions Panel */}
@@ -131,8 +171,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         </div>
       </div>
 
-      {/* Pie Chart & Recent Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Pie Chart, Supply Health & Recent Activity */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs lg:col-span-1">
           <h3 className="font-extrabold text-slate-900 mb-4 text-xs uppercase tracking-wider">Top Dispatch Categories</h3>
           <div className="h-60 flex justify-center items-center">
@@ -165,6 +205,60 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           </div>
         </div>
 
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs lg:col-span-1">
+          <h3 className="font-extrabold text-slate-900 mb-4 text-xs uppercase tracking-wider flex items-center gap-2">
+            <Activity className="h-4 w-4 text-emerald-500 animate-pulse" />
+            Supply Health Monitor
+          </h3>
+          <div className="space-y-4">
+            <div>
+              <div className="flex justify-between text-xs font-semibold mb-1">
+                <span className="text-slate-600">Online Providers Ratio</span>
+                <span className="text-slate-900">{analytics?.onlineProviders ?? 0} / {analytics?.totalProviders ?? 0}</span>
+              </div>
+              <div className="w-full bg-slate-100 rounded-full h-2">
+                <div 
+                  className="bg-emerald-500 h-2 rounded-full" 
+                  style={{ width: `${analytics?.totalProviders > 0 ? (analytics.onlineProviders / analytics.totalProviders) * 100 : 0}%` }}
+                />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex justify-between text-xs font-semibold mb-1">
+                <span className="text-slate-600">Supply Scarcity</span>
+                <span className="text-slate-900">{analytics?.lowSupplyAreas ?? 0} categories</span>
+              </div>
+              <div className="w-full bg-slate-100 rounded-full h-2">
+                <div 
+                  className="bg-rose-500 h-2 rounded-full" 
+                  style={{ width: `${(analytics?.lowSupplyAreas ?? 0) * 20}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="border-t border-slate-100 pt-3">
+              <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-2">Category Capacity</h4>
+              <div className="space-y-1.5 text-xs font-semibold">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">AC / Heating</span>
+                  <span className={analytics?.lowSupplyAreas > 0 ? "text-rose-500" : "text-emerald-600"}>
+                    {analytics?.lowSupplyAreas > 0 ? "Low Supply" : "Healthy"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Cleaning</span>
+                  <span className="text-emerald-600">Healthy</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Electrical</span>
+                  <span className="text-emerald-600">Healthy</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs lg:col-span-2">
           <h3 className="font-extrabold text-slate-900 mb-4 text-xs uppercase tracking-wider">System Security & Activities Log</h3>
           <div className="space-y-4">
@@ -181,6 +275,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   <p className="text-[11px] text-slate-500 mt-0.5 truncate">
                     Performed on: <span className="font-bold text-slate-700">{log.entity}</span> • Admin IP: {log.ipAddress}
                   </p>
+                  {log.reason && (
+                    <p className="text-[10px] text-blue-600 italic mt-0.5">Reason: {log.reason}</p>
+                  )}
                 </div>
               </div>
             ))}

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { apiClient } from '../../api/client';
 import { 
   LayoutDashboard, Users, Wrench, ClipboardList, 
-  Settings, Activity, DollarSign, AlertTriangle, Star,
+  Settings, Activity, DollarSign, AlertTriangle,
   Menu, X, LogOut, Bell, RefreshCw, Tag
 } from 'lucide-react';
 
@@ -12,16 +12,30 @@ import { CustomerTab } from './CustomerTab';
 import { ProviderTab } from './ProviderTab';
 import { BookingTab } from './BookingTab';
 import { ServiceTab } from './ServiceTab';
-import { ReviewsTab } from './ReviewsTab';
-import { ComplaintTab } from './ComplaintTab';
+import { TicketsSection } from './TicketsSection';
 import { FinanceTab } from './FinanceTab';
 import { AuditLogsTab } from './AuditLogsTab';
 import { SettingsTab } from './SettingsTab';
 import { CouponTab } from './CouponTab';
+import { ProviderDetailsPage } from './ProviderDetailsPage';
+import { CustomerDetailsPage } from './CustomerDetailsPage';
+import { BookingDetailsPage } from './BookingDetailsPage';
+import { ComplaintDetailsPage } from './ComplaintDetailsPage';
+import { PayoutDetailsPage } from './PayoutDetailsPage';
 
 export const AdminDashboard: React.FC = () => {
+  const [role, setRole] = useState<string>(() => {
+    return localStorage.getItem('role') || 'SUPER_ADMIN';
+  });
+
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [selectedProviderId, setSelectedProviderId] = useState<number | null>(null);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
+  const [selectedBookingId, setSelectedBookingId] = useState<number | null>(null);
+  const [selectedComplaintId, setSelectedComplaintId] = useState<number | null>(null);
+  const [selectedPayoutId, setSelectedPayoutId] = useState<number | null>(null);
+  const [returnTo, setReturnTo] = useState<any>(null);
 
   // Common stats states loaded on start for dashboard view
   const [analytics, setAnalytics] = useState<any>(null);
@@ -56,13 +70,38 @@ export const AdminDashboard: React.FC = () => {
     { id: 'customers', label: 'Customers', icon: Users },
     { id: 'providers', label: 'Service Providers', icon: Wrench },
     { id: 'services', label: 'Service Catalog', icon: Settings },
-    { id: 'reviews', label: 'Reviews Moderation', icon: Star },
-    { id: 'complaints', label: 'Disputes & Complaints', icon: AlertTriangle },
+    { id: 'tickets', label: 'Disputes & Reviews', icon: AlertTriangle },
     { id: 'finance', label: 'Finance Ledger', icon: DollarSign },
     { id: 'coupons', label: 'Coupons & Promos', icon: Tag },
     { id: 'audit-logs', label: 'Security Audit Logs', icon: Activity },
     { id: 'settings', label: 'Global Configurations', icon: Settings }
   ];
+
+  const filteredMenuItems = menuItems.filter(item => {
+    if (role === 'SUPER_ADMIN') return true;
+    if (role === 'OPS_MANAGER') {
+      return ['dashboard', 'bookings', 'customers', 'providers', 'services', 'tickets', 'finance', 'coupons'].includes(item.id);
+    }
+    if (role === 'SUPPORT_TEAM') {
+      return ['dashboard', 'bookings', 'customers', 'providers', 'tickets'].includes(item.id);
+    }
+    if (role === 'FINANCE_TEAM') {
+      return ['dashboard', 'bookings', 'finance', 'coupons'].includes(item.id);
+    }
+    if (role === 'KYC_TEAM') {
+      return ['dashboard', 'providers'].includes(item.id);
+    }
+    if (role === 'MODERATOR') {
+      return ['dashboard', 'tickets'].includes(item.id);
+    }
+    if (role === 'MARKETING') {
+      return ['dashboard', 'coupons', 'settings'].includes(item.id);
+    }
+    if (role === 'VIEWER') {
+      return ['dashboard', 'bookings', 'customers', 'providers', 'services', 'tickets', 'finance', 'coupons'].includes(item.id);
+    }
+    return true;
+  });
 
   return (
     <div className="min-h-screen bg-slate-50 flex text-slate-800 font-sans">
@@ -85,16 +124,24 @@ export const AdminDashboard: React.FC = () => {
               <X className="h-4.5 w-4.5" />
             </button>
           </div>
-
+ 
           {/* Navigation Links list */}
-          <nav className="p-4 space-y-1.5 overflow-y-auto max-h-[calc(100vh-140px)]">
-            {menuItems.map((item) => {
+          <nav className="p-4 space-y-1.5 overflow-y-auto max-h-[calc(100vh-190px)]">
+            {filteredMenuItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
               return (
                 <button
                   key={item.id}
-                  onClick={() => setActiveTab(item.id)}
+                  onClick={() => {
+                    setActiveTab(item.id);
+                    setSelectedProviderId(null);
+                    setSelectedCustomerId(null);
+                    setSelectedBookingId(null);
+                    setSelectedComplaintId(null);
+                    setSelectedPayoutId(null);
+                    setReturnTo(null);
+                  }}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
                     isActive 
                       ? 'bg-blue-600 text-white shadow-md' 
@@ -109,26 +156,44 @@ export const AdminDashboard: React.FC = () => {
           </nav>
         </div>
 
-        {/* Footer info logout */}
-        <div className="p-4 border-t border-slate-800 bg-slate-950/10 flex items-center justify-between text-xs text-slate-500 font-semibold">
-          <div className="flex items-center gap-2">
-            <div className="h-7 w-7 bg-slate-800 rounded-full flex items-center justify-center font-bold text-slate-300">
-              A
+        {/* Footer info logout & simulated role switcher */}
+        <div className="p-4 border-t border-slate-800 bg-slate-950/10 flex flex-col gap-3">
+          <div className="flex items-center justify-between text-xs text-slate-500 font-semibold">
+            <div className="flex items-center gap-2">
+              <div className="h-7 w-7 bg-slate-850 rounded-full flex items-center justify-center font-bold text-slate-300">
+                A
+              </div>
+              <div>
+                <p className="text-slate-300 font-bold block">Admin Staff</p>
+                <select 
+                  value={role} 
+                  onChange={(e) => {
+                    localStorage.setItem('role', e.target.value);
+                    setRole(e.target.value);
+                  }}
+                  className="bg-transparent text-[10px] text-slate-400 font-bold border-none outline-none p-0 cursor-pointer block"
+                >
+                  <option value="SUPER_ADMIN" className="bg-slate-900 text-slate-300">SUPER_ADMIN</option>
+                  <option value="OPS_MANAGER" className="bg-slate-900 text-slate-300">OPS_MANAGER</option>
+                  <option value="SUPPORT_TEAM" className="bg-slate-900 text-slate-300">SUPPORT_TEAM</option>
+                  <option value="FINANCE_TEAM" className="bg-slate-900 text-slate-300">FINANCE_TEAM</option>
+                  <option value="KYC_TEAM" className="bg-slate-900 text-slate-300">KYC_TEAM</option>
+                  <option value="MODERATOR" className="bg-slate-900 text-slate-300">MODERATOR</option>
+                  <option value="MARKETING" className="bg-slate-900 text-slate-300">MARKETING</option>
+                  <option value="VIEWER" className="bg-slate-900 text-slate-300">VIEWER</option>
+                </select>
+              </div>
             </div>
-            <div>
-              <p className="text-slate-300 font-bold block">Admin Manager</p>
-              <span className="text-[10px] block">Role: SUPER_ADMIN</span>
-            </div>
+            <button 
+              onClick={() => {
+                localStorage.clear();
+                window.location.href = '/login';
+              }}
+              className="p-1.5 hover:bg-slate-800 hover:text-white rounded-lg transition"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
           </div>
-          <button 
-            onClick={() => {
-              localStorage.clear();
-              window.location.href = '/login';
-            }}
-            className="p-1.5 hover:bg-slate-800 hover:text-white rounded-lg transition"
-          >
-            <LogOut className="h-4 w-4" />
-          </button>
         </div>
       </aside>
 
@@ -171,43 +236,132 @@ export const AdminDashboard: React.FC = () => {
             <div className="text-center py-20 text-slate-400 text-xs font-semibold">Loading system statistics...</div>
           ) : (
             <>
-              {activeTab === 'dashboard' && (
-                <DashboardTab 
-                  analytics={analytics} 
-                  charts={charts} 
-                  auditLogs={auditLogs}
-                  onNavigateTab={(tab) => setActiveTab(tab)}
+              {selectedBookingId && (
+                <BookingDetailsPage
+                  bookingId={selectedBookingId}
+                  onBack={() => {
+                    setSelectedBookingId(null);
+                    if (returnTo) {
+                      if (returnTo.tab === 'providers') setSelectedProviderId(returnTo.id);
+                      else if (returnTo.tab === 'customers') setSelectedCustomerId(returnTo.id);
+                      setReturnTo(null);
+                    }
+                  }}
+                  onRefreshStats={fetchDashboardStats}
                 />
               )}
-              {activeTab === 'bookings' && (
-                <BookingTab onRefreshStats={fetchDashboardStats} />
+              {selectedComplaintId && (
+                <ComplaintDetailsPage
+                  complaintId={selectedComplaintId}
+                  onBack={() => {
+                    setSelectedComplaintId(null);
+                    if (returnTo) {
+                      if (returnTo.tab === 'providers') setSelectedProviderId(returnTo.id);
+                      else if (returnTo.tab === 'customers') setSelectedCustomerId(returnTo.id);
+                      setReturnTo(null);
+                    }
+                  }}
+                  onRefreshStats={fetchDashboardStats}
+                />
               )}
-              {activeTab === 'customers' && (
-                <CustomerTab onRefreshStats={fetchDashboardStats} />
+              {selectedPayoutId && (
+                <PayoutDetailsPage
+                  payoutId={selectedPayoutId}
+                  onBack={() => {
+                    setSelectedPayoutId(null);
+                    if (returnTo) {
+                      if (returnTo.tab === 'providers') setSelectedProviderId(returnTo.id);
+                      setReturnTo(null);
+                    }
+                  }}
+                  onRefreshStats={fetchDashboardStats}
+                />
               )}
-              {activeTab === 'providers' && (
-                <ProviderTab onRefreshStats={fetchDashboardStats} />
-              )}
-              {activeTab === 'services' && (
-                <ServiceTab />
-              )}
-              {activeTab === 'reviews' && (
-                <ReviewsTab />
-              )}
-              {activeTab === 'complaints' && (
-                <ComplaintTab />
-              )}
-              {activeTab === 'finance' && (
-                <FinanceTab />
-              )}
-              {activeTab === 'coupons' && (
-                <CouponTab />
-              )}
-              {activeTab === 'audit-logs' && (
-                <AuditLogsTab />
-              )}
-              {activeTab === 'settings' && (
-                <SettingsTab onRefreshStats={fetchDashboardStats} />
+
+              {!selectedBookingId && !selectedComplaintId && !selectedPayoutId && (
+                <>
+                  {activeTab === 'dashboard' && (
+                    <DashboardTab 
+                      analytics={analytics} 
+                      charts={charts} 
+                      auditLogs={auditLogs}
+                      onNavigateTab={(tab) => setActiveTab(tab)}
+                    />
+                  )}
+                  {activeTab === 'bookings' && (
+                    <BookingTab onRefreshStats={fetchDashboardStats} onSelectBooking={(id: number) => setSelectedBookingId(id)} />
+                  )}
+                  {activeTab === 'customers' && !selectedCustomerId && (
+                    <CustomerTab onRefreshStats={fetchDashboardStats} onSelectCustomer={(id: number) => setSelectedCustomerId(id)} />
+                  )}
+                  {activeTab === 'customers' && selectedCustomerId && (
+                    <CustomerDetailsPage 
+                      customerId={selectedCustomerId} 
+                      onBack={() => setSelectedCustomerId(null)} 
+                      onRefreshStats={fetchDashboardStats}
+                      onSelectBooking={(id: number) => {
+                        setReturnTo({ tab: 'customers', id: selectedCustomerId });
+                        setSelectedCustomerId(null);
+                        setSelectedBookingId(id);
+                      }}
+                      onSelectComplaint={(id: number) => {
+                        setReturnTo({ tab: 'customers', id: selectedCustomerId });
+                        setSelectedCustomerId(null);
+                        setSelectedComplaintId(id);
+                      }}
+                    />
+                  )}
+                  {activeTab === 'providers' && !selectedProviderId && (
+                    <ProviderTab onRefreshStats={fetchDashboardStats} onSelectProvider={(id: number) => setSelectedProviderId(id)} />
+                  )}
+                  {activeTab === 'providers' && selectedProviderId && (
+                    <ProviderDetailsPage 
+                      providerId={selectedProviderId} 
+                      onBack={() => setSelectedProviderId(null)}
+                      onSelectBooking={(id: number) => {
+                        setReturnTo({ tab: 'providers', id: selectedProviderId });
+                        setSelectedProviderId(null);
+                        setSelectedBookingId(id);
+                      }}
+                      onSelectComplaint={(id: number) => {
+                        setReturnTo({ tab: 'providers', id: selectedProviderId });
+                        setSelectedProviderId(null);
+                        setSelectedComplaintId(id);
+                      }}
+                    />
+                  )}
+                  {activeTab === 'services' && (
+                    <ServiceTab />
+                  )}
+                  {activeTab === 'tickets' && (
+                    <TicketsSection 
+                      onSelectComplaint={(id: number) => setSelectedComplaintId(id)}
+                      onSelectCustomer={(id: number) => setSelectedCustomerId(id)}
+                      onSelectProvider={(id: number) => setSelectedProviderId(id)}
+                    />
+                  )}
+                  {activeTab === 'finance' && (
+                    <FinanceTab 
+                      onSelectPayout={(id: number) => {
+                        setReturnTo(null);
+                        setSelectedPayoutId(id);
+                      }}
+                      onSelectBooking={(id: number) => {
+                        setReturnTo(null);
+                        setSelectedBookingId(id);
+                      }}
+                    />
+                  )}
+                  {activeTab === 'coupons' && (
+                    <CouponTab />
+                  )}
+                  {activeTab === 'audit-logs' && (
+                    <AuditLogsTab />
+                  )}
+                  {activeTab === 'settings' && (
+                    <SettingsTab onRefreshStats={fetchDashboardStats} />
+                  )}
+                </>
               )}
             </>
           )}
