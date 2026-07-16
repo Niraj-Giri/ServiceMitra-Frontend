@@ -32,13 +32,25 @@ export const ServiceDetail: React.FC = () => {
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
       <div className="grid gap-8 lg:grid-cols-[1fr_24rem]">
         <div className="overflow-hidden rounded-2xl bg-slate-950 text-white shadow-2xl shadow-slate-900/20 flex flex-col">
-          {/* Header Image Placeholder */}
-          <div className="h-48 w-full bg-slate-800 flex flex-col items-center justify-center relative overflow-hidden border-b border-white/5">
-            <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-blue-950/20" />
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/5 text-blue-200 z-10 border border-white/10 backdrop-blur-sm shadow-inner">
-              <Wrench className="h-6 w-6" />
-            </div>
-            <p className="mt-2 text-[10px] font-bold text-slate-400 uppercase tracking-[0.25em] z-10">Service Image Placeholder</p>
+          {/* Header Image */}
+          <div className="h-48 w-full relative overflow-hidden border-b border-white/5 bg-slate-900">
+            {service.imageUrl ? (
+              <img 
+                src={service.imageUrl} 
+                alt={service.name} 
+                className="absolute inset-0 w-full h-full object-cover opacity-80" 
+              />
+            ) : (
+              <>
+                <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-blue-950/20" />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/5 text-blue-200 border border-white/10 backdrop-blur-sm shadow-inner">
+                    <Wrench className="h-6 w-6" />
+                  </div>
+                  <p className="mt-2 text-[10px] font-bold text-slate-400 uppercase tracking-[0.25em]">Service Image Placeholder</p>
+                </div>
+              </>
+            )}
           </div>
 
           <div className="relative p-8 sm:p-10">

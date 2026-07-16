@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '../../api/client';
+import { uploadFile } from '../../api/files';
 import { 
   Search, Plus, Edit2, Trash2, X, 
-  ToggleLeft, ToggleRight
+  ToggleLeft, ToggleRight, ImageIcon
 } from 'lucide-react';
 
 interface ServiceListing {
@@ -14,6 +15,7 @@ interface ServiceListing {
   durationMin: number;
   whatIncluded: string | null;
   whatExcluded: string | null;
+  imageUrl: string | null;
   isActive: boolean;
 }
 
@@ -35,6 +37,9 @@ export const ServiceTab: React.FC = () => {
   const [durationMin, setDurationMin] = useState('60');
   const [whatIncluded, setWhatIncluded] = useState('');
   const [whatExcluded, setWhatExcluded] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   // Categories list
   const [categories, setCategories] = useState<string[]>([]);
@@ -69,6 +74,8 @@ export const ServiceTab: React.FC = () => {
     setDurationMin('60');
     setWhatIncluded('');
     setWhatExcluded('');
+    setImageUrl('');
+    setImageFile(null);
     setShowModal(true);
   };
 
@@ -81,22 +88,31 @@ export const ServiceTab: React.FC = () => {
     setDurationMin(String(s.durationMin));
     setWhatIncluded(s.whatIncluded || '');
     setWhatExcluded(s.whatExcluded || '');
+    setImageUrl(s.imageUrl || '');
+    setImageFile(null);
     setShowModal(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const payload = {
-      category,
-      name,
-      description,
-      basePrice: parseFloat(basePrice),
-      durationMin: parseInt(durationMin),
-      whatIncluded,
-      whatExcluded
-    };
-
+    setUploadingImage(true);
     try {
+      let finalImageUrl = imageUrl;
+      if (imageFile) {
+        finalImageUrl = await uploadFile(imageFile);
+      }
+
+      const payload = {
+        category,
+        name,
+        description,
+        basePrice: parseFloat(basePrice),
+        durationMin: parseInt(durationMin),
+        whatIncluded,
+        whatExcluded,
+        imageUrl: finalImageUrl
+      };
+
       if (editingService) {
         await apiClient.put(`/admin/services/${editingService.id}`, payload);
         alert('Service listing updated successfully');
@@ -108,6 +124,8 @@ export const ServiceTab: React.FC = () => {
       fetchServices();
     } catch (err) {
       alert('Failed to save service listing');
+    } finally {
+      setUploadingImage(false);
     }
   };
 
@@ -201,23 +219,39 @@ export const ServiceTab: React.FC = () => {
             onChange={e => setNewCategoryName(e.target.value)}
             className="px-3 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 font-mono uppercase font-bold"
           />
-          <button type="submit" className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-3 py-1.5 rounded-lg">Add Category</button>
+          <button type="submit" className="bg-slate-950 hover:bg-slate-800 text-white font-bold px-3 py-1.5 rounded-lg">Add Category</button>
         </form>
       </div>
 
       {/* Main catalog Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredServices.map(s => (
-          <div key={s.id} className={`bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex flex-col justify-between h-64 transition hover:shadow-md ${!s.isActive ? 'opacity-60 bg-slate-50/20' : ''}`}>
+          <div key={s.id} className={`bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex flex-col justify-between h-72 transition hover:shadow-md ${!s.isActive ? 'opacity-60 bg-slate-50/20' : ''}`}>
             <div>
               <div className="flex justify-between items-start mb-2">
                 <span className="bg-blue-50 text-blue-700 border border-blue-100 px-2 py-0.5 rounded text-[9px] font-bold uppercase">{s.category}</span>
                 <span className="font-mono text-base font-extrabold text-slate-900">Rs. {s.basePrice}</span>
               </div>
-              <h4 className="font-bold text-slate-800 text-sm leading-tight mb-1 truncate">{s.name}</h4>
-              <p className="text-slate-400 text-[11px] leading-relaxed mb-3 line-clamp-3">{s.description || 'No description provided.'}</p>
               
-              <div className="text-[10px] text-slate-500 font-semibold space-y-1">
+              <div className="flex gap-3 mb-3">
+                {s.imageUrl ? (
+                  <img 
+                    src={s.imageUrl} 
+                    alt={s.name} 
+                    className="w-14 h-14 rounded-xl object-cover shrink-0 bg-slate-50 border border-slate-100" 
+                  />
+                ) : (
+                  <div className="w-14 h-14 rounded-xl flex items-center justify-center shrink-0 bg-slate-50 border border-dashed border-slate-200 text-slate-400">
+                    <ImageIcon className="h-6 w-6" />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-bold text-slate-800 text-sm leading-tight mb-1 truncate">{s.name}</h4>
+                  <p className="text-slate-400 text-[11px] leading-relaxed line-clamp-2">{s.description || 'No description.'}</p>
+                </div>
+              </div>
+              
+              <div className="text-[10px] text-slate-500 font-semibold space-y-1 mt-2">
                 <p>⌚ Duration: {s.durationMin} mins</p>
                 {s.whatIncluded && <p className="truncate">✓ Included: {s.whatIncluded}</p>}
               </div>
@@ -341,6 +375,38 @@ export const ServiceTab: React.FC = () => {
                 </div>
               </div>
 
+              {/* Service Banner Image Selector */}
+              <div>
+                <label className="block text-slate-500 mb-1">Service Banner Image</label>
+                <div className="flex gap-4 items-center">
+                  {imageFile ? (
+                    <div className="w-16 h-16 rounded-xl border object-cover overflow-hidden bg-slate-50 flex items-center justify-center font-bold text-xs text-blue-600">
+                      File Selected
+                    </div>
+                  ) : imageUrl ? (
+                    <img 
+                      src={imageUrl} 
+                      alt="Service Listing preview" 
+                      className="w-16 h-16 rounded-xl object-cover border border-slate-250 bg-slate-50"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 rounded-xl border border-dashed border-slate-200 flex items-center justify-center text-slate-400 bg-slate-50">
+                      <ImageIcon className="h-6 w-6" />
+                    </div>
+                  )}
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={e => {
+                      if (e.target.files?.[0]) {
+                        setImageFile(e.target.files[0]);
+                      }
+                    }} 
+                    className="flex-1 text-xs text-slate-550 border rounded-xl p-2 bg-slate-50 focus:outline-none"
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="block text-slate-500 mb-1">What's Included (Comma-separated)</label>
                 <input
@@ -367,15 +433,17 @@ export const ServiceTab: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
+                  disabled={uploadingImage}
                   className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition"
+                  disabled={uploadingImage}
+                  className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition disabled:opacity-50"
                 >
-                  Publish Listing
+                  {uploadingImage ? 'Uploading...' : 'Publish Listing'}
                 </button>
               </div>
             </form>

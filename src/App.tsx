@@ -21,6 +21,8 @@ import { BookingTracking } from './pages/customer/BookingTracking';
 import { PostTask } from './pages/customer/PostTask';
 import { TaskDetail } from './pages/customer/TaskDetail';
 import { TaskCheckout } from './pages/customer/TaskCheckout';
+import { SupportPage } from './pages/common/SupportPage';
+import { ReferralPage } from './pages/customer/ReferralPage';
 
 const App: React.FC = () => {
   const { fetchUser, isAuthenticated } = useAuth();
@@ -49,6 +51,7 @@ const App: React.FC = () => {
 
           <Route element={<AuthGuard />}>
             <Route path="profile" element={<ProfilePage />} />
+            <Route path="support" element={<SupportPage />} />
           </Route>
 
           <Route element={<AuthGuard allowedRoles={['CUSTOMER']} />}>
@@ -57,6 +60,7 @@ const App: React.FC = () => {
             <Route path="task/:taskId" element={<TaskDetail />} />
             <Route path="customer/tasks/:taskId/checkout/:quoteId" element={<TaskCheckout />} />
             <Route path="tracking/:bookingId" element={<BookingTracking />} />
+            <Route path="referrals" element={<ReferralPage />} />
           </Route>
 
           <Route element={<AuthGuard allowedRoles={['PROVIDER']} />}>

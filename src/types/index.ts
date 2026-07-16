@@ -5,6 +5,7 @@ export interface User {
   phone: string;
   role: 'CUSTOMER' | 'PROVIDER' | 'ADMIN';
   isActive: boolean;
+  profilePhoto?: string;
   provider?: {
     id: number;
     status?: 'PENDING' | 'APPROVED' | 'REJECTED' | string;
@@ -17,6 +18,7 @@ export interface User {
     totalJobs?: number;
     latitude?: number;
     longitude?: number;
+    profilePhotoUrl?: string;
   };
 }
 
@@ -38,6 +40,7 @@ export interface Service {
   priceType: 'FIXED' | 'HOURLY' | 'STARTING_AT';
   whatIncluded?: string;
   whatExcluded?: string;
+  imageUrl?: string;
 }
 
 export interface Booking {

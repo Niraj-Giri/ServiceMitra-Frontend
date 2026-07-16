@@ -261,6 +261,21 @@ export const AdminDashboard: React.FC = () => {
                       setReturnTo(null);
                     }
                   }}
+                  onSelectBooking={(id: number) => {
+                    setReturnTo({ tab: 'tickets', id: selectedComplaintId }); // Tab changed to tickets
+                    setSelectedComplaintId(null);
+                    setSelectedBookingId(id);
+                  }}
+                  onSelectCustomer={(id: number) => {
+                    setReturnTo({ tab: 'tickets', id: selectedComplaintId }); // Tab changed to tickets
+                    setSelectedComplaintId(null);
+                    setSelectedCustomerId(id);
+                  }}
+                  onSelectProvider={(id: number) => {
+                    setReturnTo({ tab: 'tickets', id: selectedComplaintId }); // Tab changed to tickets
+                    setSelectedComplaintId(null);
+                    setSelectedProviderId(id);
+                  }}
                   onRefreshStats={fetchDashboardStats}
                 />
               )}
@@ -277,8 +292,55 @@ export const AdminDashboard: React.FC = () => {
                   onRefreshStats={fetchDashboardStats}
                 />
               )}
+              {selectedCustomerId && (
+                <CustomerDetailsPage 
+                  customerId={selectedCustomerId} 
+                  onBack={() => {
+                    setSelectedCustomerId(null);
+                    if (returnTo) {
+                      if (returnTo.tab === 'tickets') setSelectedComplaintId(returnTo.id);
+                      else if (returnTo.tab === 'providers') setSelectedProviderId(returnTo.id);
+                      setReturnTo(null);
+                    }
+                  }}
+                  onRefreshStats={fetchDashboardStats}
+                  onSelectBooking={(id: number) => {
+                    setReturnTo({ tab: 'customers', id: selectedCustomerId });
+                    setSelectedCustomerId(null);
+                    setSelectedBookingId(id);
+                  }}
+                  onSelectComplaint={(id: number) => {
+                    setReturnTo({ tab: 'customers', id: selectedCustomerId });
+                    setSelectedCustomerId(null);
+                    setSelectedComplaintId(id);
+                  }}
+                />
+              )}
+              {selectedProviderId && (
+                <ProviderDetailsPage 
+                  providerId={selectedProviderId} 
+                  onBack={() => {
+                    setSelectedProviderId(null);
+                    if (returnTo) {
+                      if (returnTo.tab === 'tickets') setSelectedComplaintId(returnTo.id);
+                      else if (returnTo.tab === 'customers') setSelectedCustomerId(returnTo.id);
+                      setReturnTo(null);
+                    }
+                  }}
+                  onSelectBooking={(id: number) => {
+                    setReturnTo({ tab: 'providers', id: selectedProviderId });
+                    setSelectedProviderId(null);
+                    setSelectedBookingId(id);
+                  }}
+                  onSelectComplaint={(id: number) => {
+                    setReturnTo({ tab: 'providers', id: selectedProviderId });
+                    setSelectedProviderId(null);
+                    setSelectedComplaintId(id);
+                  }}
+                />
+              )}
 
-              {!selectedBookingId && !selectedComplaintId && !selectedPayoutId && (
+              {!selectedBookingId && !selectedComplaintId && !selectedPayoutId && !selectedCustomerId && !selectedProviderId && (
                 <>
                   {activeTab === 'dashboard' && (
                     <DashboardTab 
@@ -294,41 +356,8 @@ export const AdminDashboard: React.FC = () => {
                   {activeTab === 'customers' && !selectedCustomerId && (
                     <CustomerTab onRefreshStats={fetchDashboardStats} onSelectCustomer={(id: number) => setSelectedCustomerId(id)} />
                   )}
-                  {activeTab === 'customers' && selectedCustomerId && (
-                    <CustomerDetailsPage 
-                      customerId={selectedCustomerId} 
-                      onBack={() => setSelectedCustomerId(null)} 
-                      onRefreshStats={fetchDashboardStats}
-                      onSelectBooking={(id: number) => {
-                        setReturnTo({ tab: 'customers', id: selectedCustomerId });
-                        setSelectedCustomerId(null);
-                        setSelectedBookingId(id);
-                      }}
-                      onSelectComplaint={(id: number) => {
-                        setReturnTo({ tab: 'customers', id: selectedCustomerId });
-                        setSelectedCustomerId(null);
-                        setSelectedComplaintId(id);
-                      }}
-                    />
-                  )}
                   {activeTab === 'providers' && !selectedProviderId && (
                     <ProviderTab onRefreshStats={fetchDashboardStats} onSelectProvider={(id: number) => setSelectedProviderId(id)} />
-                  )}
-                  {activeTab === 'providers' && selectedProviderId && (
-                    <ProviderDetailsPage 
-                      providerId={selectedProviderId} 
-                      onBack={() => setSelectedProviderId(null)}
-                      onSelectBooking={(id: number) => {
-                        setReturnTo({ tab: 'providers', id: selectedProviderId });
-                        setSelectedProviderId(null);
-                        setSelectedBookingId(id);
-                      }}
-                      onSelectComplaint={(id: number) => {
-                        setReturnTo({ tab: 'providers', id: selectedProviderId });
-                        setSelectedProviderId(null);
-                        setSelectedComplaintId(id);
-                      }}
-                    />
                   )}
                   {activeTab === 'services' && (
                     <ServiceTab />

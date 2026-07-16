@@ -56,18 +56,46 @@ export const TopBar: React.FC = () => {
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                 className="focus-ring flex items-center gap-2 rounded-full bg-slate-100/80 px-2 py-1 transition hover:bg-slate-200/80"
               >
-                <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold shadow-lg shadow-blue-600/20">
-                  {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
-                </div>
+                {user.role === 'PROVIDER' && user.provider?.profilePhotoUrl ? (
+                  <img 
+                    src={user.provider.profilePhotoUrl} 
+                    alt={user.name} 
+                    className="w-10 h-10 rounded-full object-cover shadow-lg shadow-blue-600/20" 
+                  />
+                ) : user.profilePhoto ? (
+                  <img 
+                    src={user.profilePhoto} 
+                    alt={user.name} 
+                    className="w-10 h-10 rounded-full object-cover shadow-lg shadow-blue-600/20" 
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold shadow-lg shadow-blue-600/20">
+                    {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                  </div>
+                )}
                 <ChevronDown className={`h-4 w-4 text-slate-500 transition ${isDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
 
               {isDropdownOpen && (
                 <div className="absolute right-0 z-50 mt-3 w-56 overflow-hidden rounded-2xl border border-slate-200 bg-white py-2 shadow-2xl shadow-slate-900/12">
                   <div className="px-4 py-3 border-b border-slate-100">
-                    <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 text-blue-600">
-                      <UserRound className="h-5 w-5" />
-                    </div>
+                    {user.role === 'PROVIDER' && user.provider?.profilePhotoUrl ? (
+                      <img 
+                        src={user.provider.profilePhotoUrl} 
+                        alt={user.name} 
+                        className="mb-2 w-9 h-9 rounded-full object-cover shadow-sm" 
+                      />
+                    ) : user.profilePhoto ? (
+                      <img 
+                        src={user.profilePhoto} 
+                        alt={user.name} 
+                        className="mb-2 w-9 h-9 rounded-full object-cover shadow-sm" 
+                      />
+                    ) : (
+                      <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+                        <UserRound className="h-5 w-5" />
+                      </div>
+                    )}
                     <p className="text-sm font-bold text-slate-900 truncate">{user.name || 'User'}</p>
                     <p className="text-xs text-slate-500 truncate">{user.phone}</p>
                   </div>
@@ -90,22 +118,38 @@ export const TopBar: React.FC = () => {
                         My Bookings
                       </Link>
                       <Link 
-                        to="/customer/dashboard?tab=loyalty" 
+                        to="/referrals" 
                         className="block px-4 py-2.5 text-sm font-semibold text-blue-600 hover:bg-blue-50 transition"
                         onClick={() => setIsDropdownOpen(false)}
                       >
                         🎁 Referrals & Rewards
                       </Link>
+                      <Link 
+                        to="/support" 
+                        className="block px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition"
+                        onClick={() => setIsDropdownOpen(false)}
+                      >
+                        Support & Disputes
+                      </Link>
                     </>
                   )}
                   {user.role === 'PROVIDER' && (
-                    <Link 
-                      to="/provider/dashboard" 
-                      className="block px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition"
-                      onClick={() => setIsDropdownOpen(false)}
-                    >
-                      Provider Dashboard
-                    </Link>
+                    <>
+                      <Link 
+                        to="/provider/dashboard" 
+                        className="block px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition"
+                        onClick={() => setIsDropdownOpen(false)}
+                      >
+                        Provider Dashboard
+                      </Link>
+                      <Link 
+                        to="/support" 
+                        className="block px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition"
+                        onClick={() => setIsDropdownOpen(false)}
+                      >
+                        Support & Disputes
+                      </Link>
+                    </>
                   )}
                   {user.role === 'ADMIN' && (
                     <Link 
@@ -194,22 +238,38 @@ export const TopBar: React.FC = () => {
                     📋 My Bookings
                   </Link>
                   <Link
-                    to="/customer/dashboard?tab=loyalty"
+                    to="/referrals"
                     className="block text-sm font-semibold text-blue-600 py-2.5 px-3 rounded-xl hover:bg-blue-50 transition"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     🎁 Referrals & Rewards
                   </Link>
+                  <Link
+                    to="/support"
+                    className="block text-sm font-bold text-slate-700 hover:text-blue-600 py-2.5 px-3 rounded-xl hover:bg-blue-50 transition"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    💬 Support & Disputes
+                  </Link>
                 </>
               )}
               {user.role === 'PROVIDER' && (
-                <Link
-                  to="/provider/dashboard"
-                  className="block text-sm font-bold text-slate-700 hover:text-blue-600 py-2.5 px-3 rounded-xl hover:bg-blue-50 transition"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  🛠️ Provider Dashboard
-                </Link>
+                <>
+                  <Link
+                    to="/provider/dashboard"
+                    className="block text-sm font-bold text-slate-700 hover:text-blue-600 py-2.5 px-3 rounded-xl hover:bg-blue-50 transition"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    🛠️ Provider Dashboard
+                  </Link>
+                  <Link
+                    to="/support"
+                    className="block text-sm font-bold text-slate-700 hover:text-blue-600 py-2.5 px-3 rounded-xl hover:bg-blue-50 transition"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    💬 Support & Disputes
+                  </Link>
+                </>
               )}
               {user.role === 'ADMIN' && (
                 <Link

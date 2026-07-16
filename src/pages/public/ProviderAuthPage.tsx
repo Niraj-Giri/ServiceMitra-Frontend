@@ -102,9 +102,10 @@ export const ProviderAuthPage: React.FC = () => {
 
       await providerRegister(payload);
       
-      // 3. Fetch user and redirect
-      await fetchUser();
-      navigate('/provider/dashboard');
+      alert('Your professional registration was submitted successfully. Your profile is pending review. You will be able to log in once approved by the admin.');
+      setActiveTab('LOGIN');
+      setRegStep('DETAILS');
+      setRegOtp('');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to complete registration');
     } finally {

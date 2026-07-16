@@ -10,8 +10,6 @@ import {
   Zap, ChevronRight
 } from 'lucide-react';
 import { ChatBox } from '../../components/chat/ChatBox';
-import { CustomerLoyalty } from '../../components/customer/CustomerLoyalty';
-import { CustomerDisputes } from '../../components/customer/CustomerDisputes';
 
 export const CustomerDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -21,77 +19,14 @@ export const CustomerDashboard: React.FC = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [tasks, setTasks] = useState<TaskRequest[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'UPCOMING' | 'TASKS' | 'COMPLETED' | 'CANCELLED' | 'DISPUTES' | 'LOYALTY'>(
-    ['UPCOMING', 'TASKS', 'COMPLETED', 'CANCELLED', 'DISPUTES', 'LOYALTY'].includes(initialTab) ? initialTab as any : 'UPCOMING'
+  const [activeTab, setActiveTab] = useState<'UPCOMING' | 'TASKS' | 'COMPLETED' | 'CANCELLED'>(
+    ['UPCOMING', 'TASKS', 'COMPLETED', 'CANCELLED'].includes(initialTab) ? initialTab as any : 'UPCOMING'
   );
   const [chatBookingId, setChatBookingId] = useState<number | null>(null);
   const [rescheduleBooking, setRescheduleBooking] = useState<Booking | null>(null);
   const [rescheduleDateTime, setRescheduleDateTime] = useState('');
   const [rescheduling, setRescheduling] = useState(false);
   const [alertConfig, setAlertConfig] = useState<{ title: string; message: string; type: 'success' | 'error' | 'info' } | null>(null);
-
-  // Complaints States
-  const [complaints, setComplaints] = useState<any[]>([]);
-  const [activeComplaint, setActiveComplaint] = useState<any | null>(null);
-  const [complaintMessages, setComplaintMessages] = useState<any[]>([]);
-  const [replyMessage, setReplyMessage] = useState('');
-  const [sendingReply, setSendingReply] = useState(false);
-
-  // Loyalty & Reward Points States
-  const [loyaltyData, setLoyaltyData] = useState<{ pointsBalance: number; history: any[] }>({ pointsBalance: 0, history: [] });
-
-  const fetchLoyaltyData = async () => {
-    try {
-      const response = await apiClient.get('/loyalty/points');
-      setLoyaltyData(response.data);
-    } catch (err) {
-      console.error('Failed to fetch loyalty data', err);
-    }
-  };
-
-
-
-  const fetchComplaints = async () => {
-    try {
-      const response = await apiClient.get('/complaints');
-      if (response.data.success) {
-        setComplaints(response.data.data);
-      }
-    } catch (err) {
-      console.error('Failed to fetch complaints', err);
-    }
-  };
-
-  const handleLoadComplaintMessages = async (complaint: any) => {
-    setActiveComplaint(complaint);
-    try {
-      const response = await apiClient.get(`/complaints/${complaint.id}/messages`);
-      if (response.data.success) {
-        setComplaintMessages(response.data.data);
-      }
-    } catch (err) {
-      console.error('Failed to load complaint messages', err);
-    }
-  };
-
-  const handleSendComplaintMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeComplaint || !replyMessage.trim()) return;
-    setSendingReply(true);
-    try {
-      const response = await apiClient.post(`/complaints/${activeComplaint.id}/messages`, {
-        content: replyMessage
-      });
-      if (response.data.success) {
-        setComplaintMessages([...complaintMessages, response.data.data]);
-        setReplyMessage('');
-      }
-    } catch (err) {
-      console.error('Failed to send reply', err);
-    } finally {
-      setSendingReply(false);
-    }
-  };
 
   const handleRescheduleSubmit = async () => {
     if (!rescheduleBooking || !rescheduleDateTime) return;
@@ -158,14 +93,10 @@ export const CustomerDashboard: React.FC = () => {
   useEffect(() => {
     fetchBookings();
     fetchTasks();
-    fetchComplaints();
   }, []);
 
   useEffect(() => {
     setSearchParams({ tab: activeTab.toLowerCase() });
-    if (activeTab === 'LOYALTY') {
-      fetchLoyaltyData();
-    }
     if (activeTab === 'TASKS') {
       fetchTasks();
     }
@@ -335,26 +266,6 @@ export const CustomerDashboard: React.FC = () => {
             >
               My Tasks ({tasks.length})
             </button>
-            <button
-              onClick={() => setActiveTab('DISPUTES')}
-              className={`px-5 py-1.5 rounded-full text-xs font-bold transition duration-200 ${
-                activeTab === 'DISPUTES'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-900'
-              }`}
-            >
-              Disputes ({complaints.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('LOYALTY')}
-              className={`px-5 py-1.5 rounded-full text-xs font-bold transition duration-200 ${
-                activeTab === 'LOYALTY'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-900'
-              }`}
-            >
-              Referrals & Rewards
-            </button>
           </div>
         </div>
         
@@ -429,23 +340,6 @@ export const CustomerDashboard: React.FC = () => {
               })
             )}
           </div>
-        ) : activeTab === 'LOYALTY' ? (
-          <CustomerLoyalty
-            loyaltyData={loyaltyData}
-            userPhone={user?.phone}
-            fetchLoyaltyData={fetchLoyaltyData}
-          />
-        ) : activeTab === 'DISPUTES' ? (
-          <CustomerDisputes
-            complaints={complaints}
-            activeComplaint={activeComplaint}
-            complaintMessages={complaintMessages}
-            replyMessage={replyMessage}
-            sendingReply={sendingReply}
-            onSelectComplaint={handleLoadComplaintMessages}
-            onSendReply={handleSendComplaintMessage}
-            onSetReplyMessage={setReplyMessage}
-          />
         ) : getFilteredBookings().length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-300 bg-white/70 py-12 text-center">
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">

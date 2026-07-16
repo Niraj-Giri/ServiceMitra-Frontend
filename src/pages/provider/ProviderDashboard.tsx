@@ -5,11 +5,10 @@ import { apiClient } from '../../api/client';
 import type { Booking, TaskRequest, Quote } from '../../types';
 import { getAvailableTasks, submitQuote, getMyQuotes, respondToCounter, withdrawQuote, getProviderTasks, startTask, completeTask } from '../../api/tasks';
 import {
-  CheckCircle2, XCircle, Clock
+  CheckCircle2, XCircle, Clock, AlertTriangle
 } from 'lucide-react';
 import { ProviderEarnings } from '../../components/provider/ProviderEarnings';
 import { ProviderIncentives } from '../../components/provider/ProviderIncentives';
-import { ProviderDisputes } from '../../components/provider/ProviderDisputes';
 
 const getTimeRemainingStr = (scheduledAtStr: string) => {
   const now = new Date();
@@ -36,7 +35,7 @@ const getTimeRemainingStr = (scheduledAtStr: string) => {
   return isPast ? `${timeStr} ago` : `${timeStr} left`;
 };
 
-type Tab = 'CURRENT_JOB' | 'HISTORY' | 'EARNINGS' | 'INCENTIVES' | 'SETTINGS' | 'DISPUTES' | 'MARKETPLACE' | 'MY_BIDS';
+type Tab = 'CURRENT_JOB' | 'HISTORY' | 'EARNINGS' | 'INCENTIVES' | 'SETTINGS' | 'MARKETPLACE' | 'MY_BIDS';
 
 export const ProviderDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -82,53 +81,16 @@ export const ProviderDashboard: React.FC = () => {
   
   // Earnings Filter State
   const [earningsFilter, setEarningsFilter] = useState<'ALL' | '7_DAYS' | '30_DAYS' | 'THIS_MONTH'>('ALL');
+  const [activeComplaintsCount, setActiveComplaintsCount] = useState(0);
 
-  // Disputes States
-  const [complaints, setComplaints] = useState<any[]>([]);
-  const [activeComplaint, setActiveComplaint] = useState<any | null>(null);
-  const [complaintMessages, setComplaintMessages] = useState<any[]>([]);
-  const [replyMessage, setReplyMessage] = useState('');
-  const [sendingReply, setSendingReply] = useState(false);
-
-  const fetchComplaints = async () => {
+  const fetchActiveComplaintsCount = async () => {
     try {
       const response = await apiClient.get('/complaints');
-      if (response.data.success) {
-        setComplaints(response.data.data);
-      }
+      const list = response.data || response || [];
+      const count = list.filter((c: any) => c.status !== 'RESOLVED' && c.status !== 'REJECTED').length;
+      setActiveComplaintsCount(count);
     } catch (err) {
-      console.error('Failed to fetch complaints', err);
-    }
-  };
-
-  const handleLoadComplaintMessages = async (complaint: any) => {
-    setActiveComplaint(complaint);
-    try {
-      const response = await apiClient.get(`/complaints/${complaint.id}/messages`);
-      if (response.data.success) {
-        setComplaintMessages(response.data.data);
-      }
-    } catch (err) {
-      console.error('Failed to load complaint messages', err);
-    }
-  };
-
-  const handleSendComplaintMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeComplaint || !replyMessage.trim()) return;
-    setSendingReply(true);
-    try {
-      const response = await apiClient.post(`/complaints/${activeComplaint.id}/messages`, {
-        content: replyMessage
-      });
-      if (response.data.success) {
-        setComplaintMessages([...complaintMessages, response.data.data]);
-        setReplyMessage('');
-      }
-    } catch (err) {
-      console.error('Failed to send reply', err);
-    } finally {
-      setSendingReply(false);
+      console.error('Failed to fetch complaints count', err);
     }
   };
 
@@ -163,8 +125,11 @@ export const ProviderDashboard: React.FC = () => {
 
   useEffect(() => {
     fetchBookings();
-    fetchComplaints();
-    const interval = setInterval(fetchBookings, 5000);
+    fetchActiveComplaintsCount();
+    const interval = setInterval(() => {
+      fetchBookings();
+      fetchActiveComplaintsCount();
+    }, 5000);
     return () => clearInterval(interval);
   }, [user]);
 
@@ -583,12 +548,6 @@ export const ProviderDashboard: React.FC = () => {
             Settings & Availability
           </button>
           <button 
-            onClick={() => setActiveTab('DISPUTES')}
-            className={`shrink-0 text-center md:text-left px-4 py-3 rounded-lg font-medium transition ${activeTab === 'DISPUTES' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
-          >
-            Disputes & Complaints ({complaints.length})
-          </button>
-          <button 
             onClick={() => setActiveTab('MARKETPLACE')}
             className={`shrink-0 text-center md:text-left px-4 py-3 rounded-lg font-medium transition ${activeTab === 'MARKETPLACE' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
           >
@@ -605,6 +564,25 @@ export const ProviderDashboard: React.FC = () => {
 
       {/* Main Content Area */}
       <div className="flex-1 space-y-6">
+        {activeComplaintsCount > 0 && (
+          <div className="bg-rose-50 border border-rose-200 rounded-2xl p-5 flex items-start justify-between gap-4 animate-fade-in">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-rose-100 rounded-xl text-rose-600 shrink-0">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+              <div>
+                <h4 className="font-extrabold text-rose-950 text-sm">Action Required: Customer Dispute Logged</h4>
+                <p className="text-xs text-rose-800 mt-1">There are {activeComplaintsCount} active disputes or complaints filed against your bookings. Please review them and submit explanations as requested.</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => navigate('/support')}
+              className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl transition shrink-0 shadow-sm shadow-rose-600/10"
+            >
+              Review Disputes
+            </button>
+          </div>
+        )}
         
         {/* Top Header Metrics (always visible or hideable depending on tab) */}
         {activeTab === 'CURRENT_JOB' && (
@@ -925,19 +903,6 @@ export const ProviderDashboard: React.FC = () => {
                 </button>
               </div>
             </div>
-          )}
-
-          {activeTab === 'DISPUTES' && (
-            <ProviderDisputes
-              complaints={complaints}
-              activeComplaint={activeComplaint}
-              complaintMessages={complaintMessages}
-              replyMessage={replyMessage}
-              sendingReply={sendingReply}
-              onSelectComplaint={handleLoadComplaintMessages}
-              onSendReply={handleSendComplaintMessage}
-              onSetReplyMessage={setReplyMessage}
-            />
           )}
         </div>
       </div>

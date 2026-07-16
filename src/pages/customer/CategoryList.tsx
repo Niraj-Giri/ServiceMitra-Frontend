@@ -134,7 +134,7 @@ export const CategoryList: React.FC = () => {
                   {/* Service Image */}
                   <div className="w-full h-44 rounded-2xl overflow-hidden bg-slate-100 shrink-0 relative mb-4">
                     <img 
-                      src={getServicePlaceholderImage(service.category)} 
+                      src={service.imageUrl || getServicePlaceholderImage(service.category)} 
                       alt={service.name} 
                       className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
                     />
